@@ -1,7 +1,7 @@
 # encoding: utf-8
 Gem::Specification.new do |spec|
   spec.name          = 'protip'
-  spec.version       = '0.9.6'
+  spec.version       = '0.9.7'
   spec.summary       = 'Resources backed by protobuf messages'
   spec.authors       = ['AngelList']
   spec.email         = ['team@angel.co', 'k2@angel.co']
