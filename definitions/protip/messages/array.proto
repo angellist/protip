@@ -1,0 +1,5 @@
+package Protip.Messages;
+
+message Array {
+  repeated bytes messages = 1;
+}

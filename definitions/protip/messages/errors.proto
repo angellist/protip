@@ -1,0 +1,11 @@
+package Protip.Messages;
+
+message Errors {
+  repeated string messages = 1;
+  repeated FieldError field_errors = 2;
+}
+
+message FieldError {
+  optional string field = 1;
+  optional string message = 2;
+}
