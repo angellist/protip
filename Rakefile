@@ -47,3 +47,12 @@ task :clean do
     ::FileUtils.rm(file)
   end
 end
+
+desc 'Open a console with this gem loaded'
+task :console do
+  require 'irb'
+  require 'irb/completion'
+  require 'protip'
+  ARGV.clear
+  IRB.start
+end

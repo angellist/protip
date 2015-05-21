@@ -2,12 +2,11 @@ require 'active_support/concern'
 require 'protobuf'
 
 module Protip
-  module MessageWrapper
-    extend ActiveSupport::Concern
-
-    attr_reader :message
-    def initialize(message)
+  class Wrapper
+    attr_reader :message, :converter
+    def initialize(message, converter)
       @message = message
+      @converter = converter
     end
 
     def method_missing(name, *args)
@@ -22,30 +21,27 @@ module Protip
       end
     end
 
-    module ClassMethods
-      def convertible?(type_class)
-        raise NotImplementedError.new(
-          'Must specify whether a message of a given type can be converted to/from a Ruby object'
-        )
+    def as_json
+      json = {}
+      message.class.fields.each do |name|
+        value = public_send(name)
+        json[name.to_s] = value.respond_to?(:as_json) ? value.as_json : value
       end
-
-      def to_object(message)
-        raise NotImplementedError.new('Must convert a message into a Ruby object')
-      end
-
-      def to_message(object, type_class)
-        raise NotImplementedError.new('Must convert a Ruby object into a message of the given type')
-      end
+      json
     end
 
     private
 
     def get(field)
       if field.is_a?(Protobuf::Field::MessageField)
-        if self.class.convertible?(field.type_class)
-          self.class.to_object message[field.name]
+        if message[field.name].nil?
+          nil
         else
-          self.class.new message[field.name]
+          if converter.convertible?(field.type_class)
+            converter.to_object message[field.name]
+          else
+            self.class.new message[field.name], converter
+          end
         end
       else
         message[field.name]
@@ -55,9 +51,9 @@ module Protip
     def set(field, value)
       if field.is_a?(Protobuf::Field::MessageField)
         if value.is_a? Protobuf::Message
-          message[field.name]
-        elsif self.class.convertible?(field.type_class)
-          message[field.name] = self.class.to_message value, field.type_class
+          message[field.name] = value
+        elsif converter.convertible?(field.type_class)
+          message[field.name] = converter.to_message value, field.type_class
         else
           raise ArgumentError.new "Cannot convert from Ruby object: \"#{field}\""
         end
@@ -66,5 +62,4 @@ module Protip
       end
     end
   end
-
 end

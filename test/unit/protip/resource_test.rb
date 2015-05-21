@@ -1,15 +1,23 @@
 require 'test_helper'
 
 require 'protip/client'
+require 'protip/converter'
 require 'protip/resource'
 
 module Protip::ResourceTest # Namespace for internal constants
   describe Protip::Resource do
+
+    class NestedMessage < ::Protobuf::Message
+      optional :int64, :number, 1
+    end
+
     class ResourceMessage < ::Protobuf::Message
       optional :int64, :id, 1
       optional :string, :string, 2
       optional :string, :string2, 3
+      optional NestedMessage, :nested_message, 4
     end
+
     class ResourceQuery < ::Protobuf::Message
       optional :string, :param, 1
     end
@@ -43,11 +51,19 @@ module Protip::ResourceTest # Namespace for internal constants
     end
 
     describe '.resource' do
+
+      let :converter do
+        Class.new do
+          include Protip::Converter
+        end.new
+      end
+
       before do
-        resource_class.class_eval do
-          resource actions: [], message: ResourceMessage
+        resource_class.class_exec(converter) do |converter|
+          resource actions: [], message: ResourceMessage, converter: converter
         end
       end
+
       it 'can only be invoked once' do
         assert_raises RuntimeError do
           resource_class.class_eval do
@@ -58,17 +74,43 @@ module Protip::ResourceTest # Namespace for internal constants
 
       it 'defines accessors for the fields on its message' do
         resource = resource_class.new
-        [:id, :id=, :string, :string=].each do |method|
+        [:id, :string].each do |method|
           assert_respond_to resource, method
         end
         refute_respond_to resource, :foo
       end
 
-      it 'sets fields on the underlying message when setters are called' do
+      it 'sets fields on the underlying message when simple setters are called' do
         resource = resource_class.new
         resource.string = 'intern'
         assert_equal 'intern', resource.message.string
         assert_equal 'intern', resource.string
+      end
+
+      it 'never checks with the converter when setting simple types' do
+        converter.expects(:convertible?).never
+        resource = resource_class.new
+        resource.string = 'intern'
+      end
+
+      it 'checks with the converter when setting message types' do
+        converter.expects(:convertible?).once.with(NestedMessage).returns(false)
+        resource = resource_class.new
+        assert_raises(ArgumentError) do
+          resource.nested_message = 5
+        end
+      end
+
+      it 'converts message types to and from their Ruby values when the converter allows' do
+        converter.expects(:convertible?).times(2).with(NestedMessage).returns(true)
+        converter.expects(:to_message).once.with(6, NestedMessage).returns(NestedMessage.new number: 100)
+        converter.expects(:to_object).once.with(NestedMessage.new number: 100).returns 'intern'
+
+        resource = resource_class.new
+        resource.nested_message = 6
+
+        assert_equal NestedMessage.new(number: 100), resource.message.nested_message, 'object was not converted'
+        assert_equal 'intern', resource.nested_message, 'message was not converted'
       end
     end
 

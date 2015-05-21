@@ -42,3 +42,5 @@ Developing
 Build message classes: `rake compile`
 
 Run tests: `rake test`
+
+Releases follow [SemVer](http://semver.org/).
