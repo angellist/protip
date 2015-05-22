@@ -1,0 +1,7 @@
+package protip;
+
+message Date {
+  required int64 year = 1;
+  required uint32 month = 2;
+  required uint32 day = 3;
+}

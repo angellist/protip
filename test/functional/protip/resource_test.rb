@@ -11,31 +11,35 @@ module Protip::ResourceTestFunctional # Namespace for internal constants
 
     # Make sure none of these are structurally identical (e.g. give fields
     # different positions), to avoid potential errors where a message is
-    # incorrectly encode. Also define them as local constants so they don't
-    # interfere with any other tests.
+    # incorrectly encoded but still accidentally correctly decoded.
+    class NestedMessage < ::Protobuf::Message
+      optional :string, :inconvertible_value, 1
+    end
     class ResourceMessage < ::Protobuf::Message
-      optional :int64, :id, 1
-      optional :string, :ordered_tests, 2
+      optional :int64, :id, 2
+      optional :string, :ordered_tests, 3
+      optional NestedMessage, :nested_message, 4
+      optional Protip::Int64Value, :nested_int, 5
     end
 
     class ResourceQuery < ::Protobuf::Message
-      optional :string, :param, 3
+      optional :string, :param, 6
     end
 
     class NameResponse < ::Protobuf::Message
-      optional :string, :name, 4
+      optional :string, :name, 7
     end
 
     class SearchRequest < ::Protobuf::Message
-      optional :string, :term, 5
+      optional :string, :term, 8
     end
 
     class SearchResponse < ::Protobuf::Message
-      repeated :string, :results, 6
+      repeated :string, :results, 9
     end
 
     class FetchRequest < ::Protobuf::Message
-      repeated :string, :names, 7
+      repeated :string, :names, 10
     end
 
     class Client
@@ -64,7 +68,7 @@ module Protip::ResourceTestFunctional # Namespace for internal constants
       describe 'with a successful server response' do
         before do
           response = Protip::Messages::Array.new(messages: ['bilbo', 'baggins'].each_with_index.map do |name, index|
-            ResourceMessage.new(id: index, ordered_tests: name).encode
+            ResourceMessage.new(id: index, ordered_tests: name, nested_int: {value: index + 42}).encode
           end)
           stub_request(:get, 'https://external.service/resources')
             .to_return body: response.encode
@@ -79,8 +83,10 @@ module Protip::ResourceTestFunctional # Namespace for internal constants
           assert_equal 2, results.length, 'incorrect number of resources were returned'
           results.each { |result| assert_instance_of Resource, result, 'incorrect type was parsed'}
 
-          assert_equal({ordered_tests: 'bilbo', id: 0}, results[0].attributes)
-          assert_equal({ordered_tests: 'baggins', id: 1}, results[1].attributes)
+          assert_equal({ordered_tests: 'bilbo', id: 0, nested_message: nil, nested_int: 42},
+            results[0].attributes)
+          assert_equal({ordered_tests: 'baggins', id: 1, nested_message: nil, nested_int: 43},
+            results[1].attributes)
         end
 
         it 'allows requests without parameters' do
@@ -138,7 +144,7 @@ module Protip::ResourceTestFunctional # Namespace for internal constants
       ].each do |id, method, uri|
         describe "with a #{id ? 'persisted' : 'non-persisted'} resource" do
           before do
-            @resource = Resource.new id: id
+            @resource = Resource.new id: id, nested_int: 100
           end
 
           describe 'with a successful server response' do
@@ -155,7 +161,7 @@ module Protip::ResourceTestFunctional # Namespace for internal constants
               @resource.save
 
               assert_requested method, uri,
-                times: 1, body: ResourceMessage.new(id: id, ordered_tests: 'no').encode
+                times: 1, body: ResourceMessage.new(id: id, ordered_tests: 'no', nested_int: {value: 100}).encode
               assert_equal 'yes', @resource.ordered_tests
             end
           end

@@ -13,7 +13,11 @@ require 'active_model/naming'
 require 'active_model/translation'
 require 'active_model/errors'
 
+require 'forwardable'
+
 require 'protip/error'
+require 'protip/standard_converter'
+require 'protip/wrapper'
 
 require 'protip/messages/array.pb'
 
@@ -65,7 +69,7 @@ module Protip
       # we should generally do this through the `save` method.
       def create!
         raise RuntimeError.new("Can't re-create a persisted object") if persisted?
-        @message = self.class.client.request path: self.class.base_path,
+        self.message = self.class.client.request path: self.class.base_path,
           method: Net::HTTP::Post,
           message: message,
           response_type: self.class.message
@@ -80,7 +84,7 @@ module Protip
       # we should generally do this through the `save` method.
       def update!
         raise RuntimeError.new("Can't update a non-persisted object") if !persisted?
-        @message = self.class.client.request path: "#{self.class.base_path}/#{id}",
+        self.message = self.class.client.request path: "#{self.class.base_path}/#{id}",
           method: Net::HTTP::Put,
           message: message,
           response_type: self.class.message
@@ -92,7 +96,7 @@ module Protip
     module Destroyable
       def destroy
         raise RuntimeError.new("Can't destroy a non-persisted object") if !persisted?
-        @message = self.class.client.request path: "#{self.class.base_path}/#{id}",
+        self.message = self.class.client.request path: "#{self.class.base_path}/#{id}",
           method: Net::HTTP::Delete,
           message: nil,
           response_type: self.class.message
@@ -126,11 +130,17 @@ module Protip
     included do
       extend ActiveModel::Naming
       extend ActiveModel::Translation
+      extend Forwardable
+
+      def_delegator :@wrapper, :message
+      def_delegator :@wrapper, :as_json
     end
     module ClassMethods
 
       attr_accessor :client
+
       attr_reader :message
+      attr_reader :converter
 
       attr_writer :base_path
       def base_path
@@ -140,20 +150,18 @@ module Protip
       private
 
       # Primary entry point for defining resourceful behavior.
-      def resource(actions:, message:, query: nil)
+      def resource(actions:, message:, query: nil, converter: Protip::StandardConverter.new)
         if @message
           raise RuntimeError.new('Only one call to `resource` is allowed')
         end
 
+        @converter = converter
+
         # Define attribute readers/writers
         @message = message
         @message.all_fields.each do |field|
-          define_method :"#{field.name}" do
-            @message.public_send field.name
-          end
-          define_method :"#{field.name}=" do |value|
-            @message.public_send :"#{field.name}=", value
-          end
+          def_delegator :@wrapper, :"#{field.name}"
+          def_delegator :@wrapper, :"#{field.name}="
         end
 
         # Validate arguments
@@ -220,18 +228,24 @@ module Protip
       end
     end
 
-    attr_reader :message
     def initialize(message_or_params = {})
       if self.class.message == nil
         raise RuntimeError.new('Must define a message class using `resource`')
       end
       if message_or_params.is_a?(self.class.message)
-        @message = message_or_params
+        self.message = message_or_params
       else
-        @message = self.class.message.new(message_or_params)
+        self.message = self.class.message.new
+        message_or_params.each do |field, value|
+          public_send :"#{field}=", value
+        end
       end
 
       super()
+    end
+
+    def message=(message)
+      @wrapper = Protip::Wrapper.new(message, self.class.converter)
     end
 
     def save
@@ -260,8 +274,9 @@ module Protip
     end
 
     def attributes
+      # Like `.as_json`, but includes nil fields to match ActiveRecord behavior.
       self.class.message.all_fields.map{|field| field.name}.inject({}) do |hash, attribute_name|
-        hash[attribute_name] = message.field?(attribute_name) ? public_send(attribute_name) : nil
+        hash[attribute_name] = message.field?(attribute_name) ? public_send(attribute_name).as_json : nil
         hash
       end
     end
