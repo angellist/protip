@@ -9,6 +9,18 @@ module Protip
       @converter = converter
     end
 
+    def respond_to?(name)
+      if super
+        true
+      else
+        if name =~ /=$/
+          message.class.fields.any?{|field| :"#{field.name}=" == name.to_sym}
+        else
+          message.class.fields.any?{|field| field.name == name.to_sym}
+        end
+      end
+    end
+
     def method_missing(name, *args)
       if (name =~ /=$/ && field = message.class.fields.detect{|field| :"#{field.name}=" == name})
         raise ArgumentError unless args.length == 1
@@ -28,6 +40,10 @@ module Protip
         json[name.to_s] = value.respond_to?(:as_json) ? value.as_json : value
       end
       json
+    end
+
+    def ==(wrapper)
+      message == wrapper.message && converter == wrapper.converter
     end
 
     private
