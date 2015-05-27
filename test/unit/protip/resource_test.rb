@@ -281,6 +281,42 @@ module Protip::ResourceTest # Namespace for internal constants
       end
     end
 
+    describe '#initialize' do
+      it 'fails if a resource definition has not yet been given' do
+        error = assert_raises RuntimeError do
+          resource_class.new
+        end
+        assert_equal 'Must define a message class using `resource`', error.message
+      end
+      describe 'when a message is given' do
+        before do
+          resource_class.class_eval do
+            resource actions: [], message: ResourceMessage
+          end
+        end
+
+        it 'creates a resource with an empty message if no attributes are provided' do
+          assert_equal ResourceMessage.new, resource_class.new.message
+        end
+
+        it 'allows a message to be provided directly' do
+          message = ResourceMessage.new(id: 1)
+          assert_equal message, resource_class.new(message).message
+        end
+
+        it 'sets attributes when a hash is given' do
+          attrs = {id: 2}
+          assert_equal ResourceMessage.new(attrs), resource_class.new(attrs).message
+        end
+
+        it 'delegates to `assign_attributes` on its wrapper object when a hash is given' do
+          attrs = {id: 3}
+          Protip::Wrapper.any_instance.expects(:assign_attributes).once.with({id: 3})
+          resource_class.new(attrs)
+        end
+      end
+    end
+
     describe '#save' do
       let :response do
         ResourceMessage.new(string: 'pit', string2: 'bull', id: 200)

@@ -228,17 +228,15 @@ module Protip
       end
     end
 
-    def initialize(message_or_params = {})
+    def initialize(message_or_attributes = {})
       if self.class.message == nil
         raise RuntimeError.new('Must define a message class using `resource`')
       end
-      if message_or_params.is_a?(self.class.message)
-        self.message = message_or_params
+      if message_or_attributes.is_a?(self.class.message)
+        self.message = message_or_attributes
       else
         self.message = self.class.message.new
-        message_or_params.each do |field, value|
-          public_send :"#{field}=", value
-        end
+        @wrapper.assign_attributes message_or_attributes
       end
 
       super()
