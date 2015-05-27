@@ -1,3 +1,4 @@
+// TODO: move to plain protip namespace, use map type, change messages -> message
 package Protip.Messages;
 
 message Errors {

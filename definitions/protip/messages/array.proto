@@ -1,3 +1,4 @@
+// TODO: Move to plain protip namespace, use Any?
 package Protip.Messages;
 
 message Array {
