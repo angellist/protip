@@ -134,6 +134,7 @@ module Protip
 
       def_delegator :@wrapper, :message
       def_delegator :@wrapper, :as_json
+      def_delegator :@wrapper, :assign_attributes
     end
     module ClassMethods
 
@@ -236,7 +237,7 @@ module Protip
         self.message = message_or_attributes
       else
         self.message = self.class.message.new
-        @wrapper.assign_attributes message_or_attributes
+        assign_attributes message_or_attributes
       end
 
       super()

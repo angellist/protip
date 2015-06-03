@@ -309,11 +309,25 @@ module Protip::ResourceTest # Namespace for internal constants
           assert_equal ResourceMessage.new(attrs), resource_class.new(attrs).message
         end
 
-        it 'delegates to `assign_attributes` on its wrapper object when a hash is given' do
+        it 'delegates to #assign_attributes on its wrapper object when a hash is given' do
           attrs = {id: 3}
           Protip::Wrapper.any_instance.expects(:assign_attributes).once.with({id: 3})
           resource_class.new(attrs)
         end
+      end
+    end
+
+    describe '#assign_attributes' do
+      before do
+        resource_class.class_eval do
+          resource actions: [], message: ResourceMessage
+        end
+      end
+      it 'delegates to #assign_attributes on its wrapper object' do
+        resource = resource_class.new
+
+        Protip::Wrapper.any_instance.expects(:assign_attributes).once.with(string: 'whodunnit').returns('boo')
+        assert_equal 'boo', resource.assign_attributes(string: 'whodunnit')
       end
     end
 
