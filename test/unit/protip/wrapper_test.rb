@@ -133,6 +133,34 @@ module Protip::WrapperTest # namespace for internal constants
       end
     end
 
+    describe '#==' do
+      it 'returns false for non-wrapper objects' do
+        refute_equal 1, wrapper
+        refute_equal wrapper, 1 # Sanity check, make sure we're testing both sides of equality
+      end
+
+      it 'returns false when messages are not equal' do
+        alternate_message = Message.new
+        refute_equal alternate_message, wrapped_message # Sanity check
+        refute_equal wrapper, Protip::Wrapper.new(alternate_message, converter)
+      end
+
+      it 'returns false when converters are not equal' do
+        alternate_converter = Class.new do
+          include Protip::Converter
+        end.new
+        refute_equal alternate_converter, converter # Sanity check
+        refute_equal wrapper, Protip::Wrapper.new(wrapped_message, alternate_converter)
+      end
+
+      it 'returns true when the message and converter are equal' do
+        # Stub converter equality so we aren't relying on actual equality behavior there
+        alternate_converter = converter.clone
+        converter.expects(:==).at_least_once.with(alternate_converter).returns(true)
+        assert_equal wrapper, Protip::Wrapper.new(wrapped_message.clone, converter)
+      end
+    end
+
     describe '#get' do
       it 'does not convert simple fields' do
         converter.expects(:convertible?).never

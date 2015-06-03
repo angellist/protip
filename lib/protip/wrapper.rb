@@ -110,7 +110,7 @@ module Protip
     end
 
     def ==(wrapper)
-      message == wrapper.message && converter == wrapper.converter
+      wrapper.is_a?(self.class) && message == wrapper.message && converter == wrapper.converter
     end
 
     private
