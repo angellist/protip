@@ -1,2 +1,0 @@
-import public "protip/messages/types.proto";
-import public "protip/messages/wrappers.proto";
