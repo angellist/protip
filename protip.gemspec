@@ -1,7 +1,7 @@
 # encoding: utf-8
 Gem::Specification.new do |spec|
   spec.name          = 'protip'
-  spec.version       = '0.10.5'
+  spec.version       = '0.10.6'
   spec.summary       = 'ActiveModel resources backed by protocol buffers'
   spec.licenses      = ['MIT']
   spec.homepage      = 'https://github.com/AngelList/protip'
@@ -14,7 +14,10 @@ Gem::Specification.new do |spec|
 
   spec.add_runtime_dependency 'activemodel', '>= 3.0.0', '< 5.0'
   spec.add_runtime_dependency 'activesupport', '>= 3.0.0', '< 5.0'
-  spec.add_runtime_dependency 'protobuf', '~> 3.5'
+
+  # Temporarily restricted. Protobuf bumped their dependency on multi_json, which is causing
+  # problems with compass.
+  spec.add_runtime_dependency 'protobuf', '~> 3.5.0'
 
   spec.add_development_dependency 'minitest', '~> 5.0'
   spec.add_development_dependency 'mocha', '~> 1.1'
