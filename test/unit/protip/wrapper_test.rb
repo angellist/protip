@@ -9,18 +9,30 @@ module Protip::WrapperTest # namespace for internal constants
         include Protip::Converter
       end.new
     end
+    let :pool do
+      pool = Google::Protobuf::DescriptorPool.new
+      pool.build do
+        add_message 'inner_message' do
+          optional :value, :int64, 1
+          optional :note, :string, 2
+        end
 
-    class InnerMessage < ::Protobuf::Message
-      required :int64, :value, 1
-      optional :string, :note, 2
+        add_message 'message' do
+          optional :inner, :message, 1, 'inner_message'
+          optional :string, :string, 2
+        end
+      end
+      pool
     end
-    class Message < ::Protobuf::Message
-      optional InnerMessage, :inner, 1
-      optional :string, :string, 2
+
+    %w(inner_message message).each do |name|
+      let(:"#{name}_class") do
+        pool.lookup(name).msgclass
+      end
     end
 
     let(:wrapped_message) do
-      Message.new(inner: {value: 25}, string: 'test')
+      message_class.new(inner: {value: 25}, string: 'test')
     end
 
     let(:wrapper) do
@@ -53,29 +65,29 @@ module Protip::WrapperTest # namespace for internal constants
       end
 
       it 'raises an error when building a convertible message' do
-        converter.stubs(:convertible?).with(InnerMessage).returns(true)
+        converter.stubs(:convertible?).with(inner_message_class).returns(true)
         assert_raises RuntimeError do
           wrapper.build(:inner)
         end
       end
 
       describe 'with an inconvertible message field' do
-        let(:wrapped_message) { Message.new }
+        let(:wrapped_message) { message_class.new }
 
         before do
-          converter.stubs(:convertible?).with(InnerMessage).returns(false)
+          converter.stubs(:convertible?).with(inner_message_class).returns(false)
         end
 
         it 'builds the message when no attributes are provided' do
           assert_nil wrapped_message.inner # Sanity check
           wrapper.build(:inner)
-          assert_equal InnerMessage.new, wrapped_message.inner
+          assert_equal inner_message_class.new, wrapped_message.inner
         end
 
         it 'overwrites the message if it exists' do
-          wrapped_message.inner = InnerMessage.new(value: 4)
+          wrapped_message.inner = inner_message_class.new(value: 4)
           wrapper.build(:inner)
-          assert_equal InnerMessage.new, wrapped_message.inner
+          assert_equal inner_message_class.new, wrapped_message.inner
         end
 
         it 'delegates to #assign_attributes if attributes are provided' do
@@ -97,10 +109,10 @@ module Protip::WrapperTest # namespace for internal constants
       end
 
       it 'assigns convertible message fields directly' do
-        converter.stubs(:convertible?).with(InnerMessage).returns(true)
-        converter.expects(:to_message).once.with(45, InnerMessage).returns(InnerMessage.new(value: 43))
+        converter.stubs(:convertible?).with(inner_message_class).returns(true)
+        converter.expects(:to_message).once.with(45, inner_message_class).returns(inner_message_class.new(value: 43))
         wrapper.assign_attributes inner: 45
-        assert_equal InnerMessage.new(value: 43), wrapped_message.inner
+        assert_equal inner_message_class.new(value: 43), wrapped_message.inner
       end
 
       it 'returns nil' do
@@ -109,19 +121,19 @@ module Protip::WrapperTest # namespace for internal constants
 
       describe 'when assigning inconvertible message fields' do
         before do
-          converter.stubs(:convertible?).with(InnerMessage).returns(false)
+          converter.stubs(:convertible?).with(inner_message_class).returns(false)
         end
 
         it 'sets multiple attributes' do
           wrapper.assign_attributes string: 'test2', inner: {value: 50}
           assert_equal 'test2', wrapped_message.string
-          assert_equal InnerMessage.new(value: 50), wrapped_message.inner
+          assert_equal inner_message_class.new(value: 50), wrapped_message.inner
         end
 
         it 'updates inconvertible message fields which have already been built' do
-          wrapped_message.inner = InnerMessage.new(value: 60)
+          wrapped_message.inner = inner_message_class.new(value: 60)
           wrapper.assign_attributes inner: {note: 'updated'}
-          assert_equal InnerMessage.new(value: 60, note: 'updated'), wrapped_message.inner
+          assert_equal inner_message_class.new(value: 60, note: 'updated'), wrapped_message.inner
         end
 
         it 'delegates to itself when setting nested attributes on inconvertible message fields' do
@@ -140,7 +152,7 @@ module Protip::WrapperTest # namespace for internal constants
       end
 
       it 'returns false when messages are not equal' do
-        alternate_message = Message.new
+        alternate_message = message_class.new
         refute_equal alternate_message, wrapped_message # Sanity check
         refute_equal wrapper, Protip::Wrapper.new(alternate_message, converter)
       end
@@ -169,15 +181,15 @@ module Protip::WrapperTest # namespace for internal constants
       end
 
       it 'converts convertible messages' do
-        converter.expects(:convertible?).with(InnerMessage).once.returns(true)
-        converter.expects(:to_object).with(InnerMessage.new(value: 25)).returns 40
+        converter.expects(:convertible?).with(inner_message_class).once.returns(true)
+        converter.expects(:to_object).with(inner_message_class.new(value: 25)).returns 40
         assert_equal 40, wrapper.inner
       end
 
       it 'wraps inconvertible messages' do
-        converter.expects(:convertible?).with(InnerMessage).once.returns(false)
+        converter.expects(:convertible?).with(inner_message_class).once.returns(false)
         converter.expects(:to_object).never
-        assert_equal Protip::Wrapper.new(InnerMessage.new(value: 25), converter), wrapper.inner
+        assert_equal Protip::Wrapper.new(inner_message_class.new(value: 25), converter), wrapper.inner
       end
     end
 
@@ -191,15 +203,15 @@ module Protip::WrapperTest # namespace for internal constants
       end
 
       it 'converts convertible messages' do
-        converter.expects(:convertible?).with(InnerMessage).once.returns(true)
-        converter.expects(:to_message).with(40, InnerMessage).returns(InnerMessage.new(value: 30))
+        converter.expects(:convertible?).with(inner_message_class).once.returns(true)
+        converter.expects(:to_message).with(40, inner_message_class).returns(inner_message_class.new(value: 30))
 
         wrapper.inner = 40
-        assert_equal InnerMessage.new(value: 30), wrapper.message.inner
+        assert_equal inner_message_class.new(value: 30), wrapper.message.inner
       end
 
       it 'raises an error when setting inconvertible messages' do
-        converter.expects(:convertible?).with(InnerMessage).once.returns(false)
+        converter.expects(:convertible?).with(inner_message_class).once.returns(false)
         converter.expects(:to_message).never
         assert_raises ArgumentError do
           wrapper.inner = 'cannot convert me'
@@ -210,8 +222,8 @@ module Protip::WrapperTest # namespace for internal constants
         converter.expects(:convertible?).never
         converter.expects(:to_message).never
 
-        wrapper.inner = InnerMessage.new(value: 50)
-        assert_equal InnerMessage.new(value: 50), wrapper.message.inner
+        wrapper.inner = inner_message_class.new(value: 50)
+        assert_equal inner_message_class.new(value: 50), wrapper.message.inner
       end
     end
   end

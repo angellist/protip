@@ -1,7 +1,6 @@
-# Missing dependency from the protobuf require
-require 'protobuf'
+# Runtime exceptions for the library (protip/messages/errors defines the messages backing resource errors).
 
-require 'protip/messages/errors.pb'
+require 'protip/messages/errors'
 
 module Protip
   class Error < RuntimeError

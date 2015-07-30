@@ -1,5 +1,6 @@
-// TODO: Move to plain protip namespace, use Any?
-package Protip.Messages;
+syntax = "proto3";
+
+package protip.messages;
 
 message Array {
   repeated bytes messages = 1;

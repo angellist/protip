@@ -9,79 +9,98 @@ module Protip::ResourceTestFunctional # Namespace for internal constants
       WebMock.disable_net_connect!
     end
 
-    # Make sure none of these are structurally identical (e.g. give fields
-    # different positions), to avoid potential errors where a message is
-    # incorrectly encoded but still accidentally correctly decoded.
-    class NestedMessage < ::Protobuf::Message
-      optional :string, :inconvertible_value, 1
-    end
-    class ResourceMessage < ::Protobuf::Message
-      optional :int64, :id, 2
-      optional :string, :ordered_tests, 3
-      optional NestedMessage, :nested_message, 4
-      optional Protip::Int64Value, :nested_int, 5
-    end
+    let :pool do
+      pool = Google::Protobuf::DescriptorPool.new
+      pool.build do
+        # Make sure none of these are structurally identical (e.g. give fields
+        # different positions), to avoid potential errors where a message is
+        # incorrectly encoded but still accidentally correctly decoded.
 
-    class ResourceQuery < ::Protobuf::Message
-      optional :string, :param, 6
-    end
+        add_message 'nested_message' do
+          optional :inconvertible_value, :string, 1
+        end
+        add_message 'resource_message' do
+          optional :id, :int64, 2
+          optional :ordered_tests, :string, 3
+          optional :nested_message, :message, 4, 'nested_message'
+          #optional :nested_int, :message, 5, 'google.protobuf.Int64Value'
+        end
 
-    class NameResponse < ::Protobuf::Message
-      optional :string, :name, 7
-    end
+        add_message 'resource_query' do
+          optional :param, :string, 6
+        end
 
-    class SearchRequest < ::Protobuf::Message
-      optional :string, :term, 8
-    end
+        add_message 'name_response' do
+          optional :name, :string, 7
+        end
 
-    class SearchResponse < ::Protobuf::Message
-      repeated :string, :results, 9
-    end
+        add_message 'search_request' do
+          optional :term, :string, 8
+        end
 
-    class FetchRequest < ::Protobuf::Message
-      repeated :string, :names, 10
-    end
+        add_message 'search_response' do
+          repeated :results, :string, 9
+        end
 
-    class Client
-      include Protip::Client
-      def base_uri
-        'https://external.service'
+        add_message 'fetch_request' do
+          repeated :names, :string, 10
+        end
+      end
+      pool
+    end
+    %w(nested_message resource_message resource_query name_response search_request search_response fetch_request).each do |name|
+      let(:"#{name}_class") do
+        pool.lookup(name).msgclass
       end
     end
 
+    let :client_class do
+      Class.new do
+        include Protip::Client
+        def base_uri
+          'https://external.service'
+        end
+      end
+    end
+
+    let :resource_class do
+      Class.new do
+        include Protip::Resource
+        resource actions: [:index, :show, :create, :update, :destroy],
+                 query: resource_query_class, message: resource_message_class
+
+        member action: :archive, method: Net::HTTP::Put
+        member action: :name, method: Net::HTTP::Get, response: name_response_class
+
+        collection action: :search, method: Net::HTTP::Get, request: search_request_class, response: search_response_class
+        collection action: :fetch, method: Net::HTTP::Post, request: fetch_request_class
+
+        self.base_path = 'resources'
+        self.client = client_class.new
+      end
+    end
     class Resource
-      include Protip::Resource
-      resource actions: [:index, :show, :create, :update, :destroy],
-               query: ResourceQuery, message: ResourceMessage
-
-      member action: :archive, method: Net::HTTP::Put
-      member action: :name, method: Net::HTTP::Get, response: NameResponse
-
-      collection action: :search, method: Net::HTTP::Get, request: SearchRequest, response: SearchResponse
-      collection action: :fetch, method: Net::HTTP::Post, request: FetchRequest
-
-      self.base_path = 'resources'
-      self.client = Client.new
     end
 
     describe '.all' do
       describe 'with a successful server response' do
         before do
           response = Protip::Messages::Array.new(messages: ['bilbo', 'baggins'].each_with_index.map do |name, index|
-            ResourceMessage.new(id: index, ordered_tests: name, nested_int: {value: index + 42}).encode
+            message = resource_message_class.new(id: index, ordered_tests: name, nested_int: {value: index + 42})
+            message.class.encode(message)
           end)
           stub_request(:get, 'https://external.service/resources')
             .to_return body: response.encode
         end
 
         it 'requests resources from the index endpoint' do
-          results = Resource.all param: 'val'
+          results = resource_class.all param: 'val'
 
           assert_requested :get, 'https://external.service/resources',
-            times: 1, body: ResourceQuery.new(param: 'val').encode
+            times: 1, body: resource_query_class.new(param: 'val').encode
 
           assert_equal 2, results.length, 'incorrect number of resources were returned'
-          results.each { |result| assert_instance_of Resource, result, 'incorrect type was parsed'}
+          results.each { |result| assert_instance_of resource_class, result, 'incorrect type was parsed'}
 
           assert_equal({ordered_tests: 'bilbo', id: 0, nested_message: nil, nested_int: 42},
             results[0].attributes)
@@ -90,9 +109,9 @@ module Protip::ResourceTestFunctional # Namespace for internal constants
         end
 
         it 'allows requests without parameters' do
-          results = Resource.all
+          results = resource_class.all
           assert_requested :get, 'https://external.service/resources',
-            times: 1, body: ResourceQuery.new.encode
+            times: 1, body: resource_query_class.new.encode
           assert_equal 2, results.length, 'incorrect number of resources were returned'
         end
       end
@@ -101,23 +120,23 @@ module Protip::ResourceTestFunctional # Namespace for internal constants
     describe '.find' do
       describe 'with a successful server response' do
         before do
-          response = ResourceMessage.new(id: 311, ordered_tests: 'i_suck_and_my_tests_are_order_dependent!').encode
+          response = resource_message_class.new(id: 311, ordered_tests: 'i_suck_and_my_tests_are_order_dependent!').encode
           stub_request(:get, 'https://external.service/resources/311').to_return body: response.encode
         end
 
         it 'requests the resource from the show endpoint' do
-          resource = Resource.find 311, param: 'val'
+          resource = resource_class.find 311, param: 'val'
           assert_requested :get, 'https://external.service/resources/311', times: 1,
-            body: ResourceQuery.new(param: 'val').encode
-          assert_instance_of Resource, resource
+            body: resource_query_class.new(param: 'val').encode
+          assert_instance_of resource_class, resource
           assert_equal 311, resource.id
           assert_equal 'i_suck_and_my_tests_are_order_dependent!', resource.ordered_tests
         end
 
         it 'allows requests without parameters' do
-          resource = Resource.find 311
+          resource = resource_class.find 311
           assert_requested :get, 'https://external.service/resources/311', times: 1,
-            body: ResourceQuery.new.encode
+            body: resource_query_class.new.encode
           assert_equal 'i_suck_and_my_tests_are_order_dependent!', resource.ordered_tests
         end
       end
@@ -125,7 +144,7 @@ module Protip::ResourceTestFunctional # Namespace for internal constants
 
     describe '#save' do
       let :resource_message do
-        ResourceMessage.new(id: 666, ordered_tests: 'yes')
+        resource_message_class.new(id: 666, ordered_tests: 'yes')
       end
       let :errors_message do
         Protip::Messages::Errors.new({
@@ -144,7 +163,7 @@ module Protip::ResourceTestFunctional # Namespace for internal constants
       ].each do |id, method, uri|
         describe "with a #{id ? 'persisted' : 'non-persisted'} resource" do
           before do
-            @resource = Resource.new id: id, nested_int: 100
+            @resource = resource_class.new id: id, nested_int: 100
           end
 
           describe 'with a successful server response' do
@@ -161,7 +180,7 @@ module Protip::ResourceTestFunctional # Namespace for internal constants
               @resource.save
 
               assert_requested method, uri,
-                times: 1, body: ResourceMessage.new(id: id, ordered_tests: 'no', nested_int: {value: 100}).encode
+                times: 1, body: resource_message_class.new(id: id, ordered_tests: 'no', nested_int: {value: 100}).encode
               assert_equal 'yes', @resource.ordered_tests
             end
           end

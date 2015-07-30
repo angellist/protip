@@ -1,5 +1,4 @@
 require 'active_support/concern'
-require 'protobuf'
 
 module Protip
 
@@ -19,18 +18,18 @@ module Protip
         true
       else
         if name =~ /=$/
-          message.class.fields.any?{|field| :"#{field.name}=" == name.to_sym}
+          message.class.descriptor.any?{|field| :"#{field.name}=" == name.to_sym}
         else
-          message.class.fields.any?{|field| field.name == name.to_sym}
+          message.class.descriptor.any?{|field| field.name == name.to_sym}
         end
       end
     end
 
     def method_missing(name, *args)
-      if (name =~ /=$/ && field = message.class.fields.detect{|field| :"#{field.name}=" == name})
+      if (name =~ /=$/ && field = message.class.descriptor.detect{|field| :"#{field.name}=" == name})
         raise ArgumentError unless args.length == 1
         set field, args[0]
-      elsif (field = message.class.fields.detect{|field| field.name == name})
+      elsif (field = message.class.descriptor.detect{|field| field.name.to_sym == name})
         raise ArgumentError unless args.length == 0
         get field
       else
@@ -62,9 +61,9 @@ module Protip
     # @return [Protip::Wrapper] The created field
     def build(field_name, attributes = {})
 
-      field = message.class.fields.detect{|field| field.name == field_name.to_sym}
-      if !field.is_a?(Protobuf::Field::MessageField)
-        raise "Not a message field: #{field_name}"
+      field = message.class.descriptor.detect{|field| field.name == field_name.to_sym}
+      if !field.type == :message
+        raise "Can only build message fields: #{field_name}"
       elsif converter.convertible?(field.type_class)
         raise "Cannot build a convertible field: #{field.name}"
       end
@@ -85,10 +84,13 @@ module Protip
     # @return [NilClass]
     def assign_attributes(attributes)
       attributes.each do |field_name, value|
-        field = message.class.fields.detect{|field| field.name == field_name.to_sym}
+        field = message.class.descriptor.detect{|field| field.name == field_name.to_s}
+        if !field
+          raise ArgumentError.new("Unrecognized field: #{field_name}")
+        end
 
         # For inconvertible nested messages, the value should be a hash - just pass it through to the nested message
-        if field.is_a?(Protobuf::Field::MessageField) && !converter.convertible?(field.type_class)
+        if field.type == :message && !converter.convertible?(field.subtype)
           wrapper = get(field) || build(field.name) # Create the field if it doesn't already exist
           wrapper.assign_attributes value
         # Otherwise, if the field is a convertible message or a simple type, we set the value directly
@@ -102,7 +104,7 @@ module Protip
 
     def as_json
       json = {}
-      message.class.fields.each do |name|
+      message.class.descriptor.map(&:name).each do |name|
         value = public_send(name)
         json[name.to_s] = value.respond_to?(:as_json) ? value.as_json : value
       end
@@ -116,11 +118,11 @@ module Protip
     private
 
     def get(field)
-      if field.is_a?(Protobuf::Field::MessageField)
+      if field.type == :message
         if message[field.name].nil?
           nil
         else
-          if converter.convertible?(field.type_class)
+          if converter.convertible?(field.subtype)
             converter.to_object message[field.name]
           else
             self.class.new message[field.name], converter
@@ -132,11 +134,11 @@ module Protip
     end
 
     def set(field, value)
-      if field.is_a?(Protobuf::Field::MessageField)
-        if value.is_a? Protobuf::Message
+      if field.type == :message
+        if value.is_a?(field.subtype.msgclass)
           message[field.name] = value
-        elsif converter.convertible?(field.type_class)
-          message[field.name] = converter.to_message value, field.type_class
+        elsif converter.convertible?(field.subtype)
+          message[field.name] = converter.to_message value, field.subtype
         else
           raise ArgumentError.new "Cannot convert from Ruby object: \"#{field}\""
         end

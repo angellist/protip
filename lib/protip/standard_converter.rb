@@ -1,8 +1,7 @@
 require 'protip/converter'
 
-require 'protobuf'
-require 'protip/messages/types.pb'
-require 'protip/messages/wrappers.pb'
+require 'protip/messages/types'
+require 'google/protobuf'
 
 module Protip
   class StandardConverter
@@ -14,54 +13,26 @@ module Protip
     @conversions = {}
 
     ## Protip types
-    @conversions[Protip::Date] = {
+    @conversions['protip.messages.Date'] = {
       to_object: ->(message) { ::Date.new(message.year, message.month, message.day) },
-      to_message: lambda do |date|
+      to_message: lambda do |date, message_class|
         raise ArgumentError unless date.is_a?(::Date)
-        Protip::Date.new year: date.year, month: date.month, day: date.day
+        message_class.new year: date.year, month: date.month, day: date.day
       end
     }
 
     ## Standard wrappers
-    [Protip::Int64Value, Protip::Int32Value, Protip::UInt64Value, Protip::UInt32Value].each do |message_class|
-      @conversions[message_class] = {
+    %w(Int64Value Int32Value UInt64Value UInt32Value DoubleValue FloatValue BoolValue StringValue BytesValue).map{|type| "google/protobuf/#{type}"}.each do |name|
+      @conversions[name] = {
         to_object: ->(message) { message.value },
-        to_message: lambda do |integer|
-          raise ArgumentError unless integer.is_a?(Integer)
-          message_class.new value: integer
-        end
-      }
-    end
-    [Protip::DoubleValue, Protip::FloatValue].each do |message_class|
-      @conversions[message_class] = {
-        to_object: ->(message) { message.value },
-        to_message: lambda do |float|
-          raise ArgumentError unless float.is_a?(Float)
-          message_class.new value: float
-        end
-      }
-    end
-    [Protip::BoolValue].each do |message_class|
-      @conversions[message_class] = {
-        to_object: ->(message) { message.value },
-        to_message: lambda do |bool|
-          # Protobuf throws a type error if this isn't the correct type, so we don't need to check
-          message_class.new value: bool
-        end
-      }
-    end
-    [Protip::StringValue, Protip::BytesValue].each do |message_class|
-      @conversions[message_class] = {
-        to_object: ->(message) { message.value },
-        to_message: lambda do |string|
-          # Protobuf throws a type error if this isn't the correct type, so we don't need to check
-          message_class.new value: string
+        to_mesage: lambda do |value, message_class|
+          message_class.new value: value
         end
       }
     end
 
     def convertible?(message_class)
-      self.class.conversions.has_key?(message_class)
+      self.class.conversions.has_key?(message_class.descriptor.name)
     end
 
     def to_object(message)
@@ -69,7 +40,7 @@ module Protip
     end
 
     def to_message(object, message_class)
-      self.class.conversions[message_class][:to_message].call(object)
+      self.class.conversions[message_class.descriptor.name][:to_message].call(object, message_class)
     end
   end
 end

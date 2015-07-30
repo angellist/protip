@@ -1,5 +1,6 @@
-// TODO: move to plain protip namespace, use map type, change messages -> message
-package Protip.Messages;
+syntax = "proto3";
+
+package protip.messages;
 
 message Errors {
   repeated string messages = 1;
@@ -7,6 +8,6 @@ message Errors {
 }
 
 message FieldError {
-  optional string field = 1;
-  optional string message = 2;
+  string field = 1;
+  string message = 2;
 }

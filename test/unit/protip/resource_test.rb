@@ -6,32 +6,41 @@ require 'protip/resource'
 
 module Protip::ResourceTest # Namespace for internal constants
   describe Protip::Resource do
+    let :pool do
+      pool = Google::Protobuf::DescriptorPool.new
+      pool.build do
+        add_message 'nested_message' do
+          optional :number, :int64, 1
+        end
+        add_message 'resource_message' do
+          optional :id, :int64, 1
+          optional :string, :string, 2
+          optional :string2, :string, 3
+          optional :nested_message, :message, 4, 'nested_message'
+        end
 
-    class NestedMessage < ::Protobuf::Message
-      optional :int64, :number, 1
-    end
+        add_message 'resource_query' do
+          optional :param, :string, 1
+        end
 
-    class ResourceMessage < ::Protobuf::Message
-      optional :int64, :id, 1
-      optional :string, :string, 2
-      optional :string, :string2, 3
-      optional NestedMessage, :nested_message, 4
-    end
+        # Give these things a different structure than resource_query_class,
+        # just to avoid any possibility of decoding as the incorrect
+        # type but still yielding correct results.
+        add_message 'action_query' do
+          optional :param, :string, 4
+        end
+        add_message 'action_response' do
+          optional :response, :string, 3
+        end
 
-    class ResourceQuery < ::Protobuf::Message
-      optional :string, :param, 1
+      end
+      pool
     end
-
-    # Give these things a different structure than ResourceQuery,
-    # just to avoid any possibility of decoding as the incorrect
-    # type but still yielding correct results.
-    class ActionQuery < ::Protobuf::Message
-      optional :string, :param, 4
+    %w(nested_message resource_message resource_query action_query action_response).each do |name|
+      let(:"#{name}_class") do
+        pool.lookup(name).msgclass
+      end
     end
-    class ActionResponse < ::Protobuf::Message
-      optional :string, :response, 3
-    end
-
     # Stubbed API client
     let :client do
       mock.responds_like_instance_of(Class.new { include Protip::Client })
@@ -59,15 +68,15 @@ module Protip::ResourceTest # Namespace for internal constants
       end
 
       before do
-        resource_class.class_exec(converter) do |converter|
-          resource actions: [], message: ResourceMessage, converter: converter
+        resource_class.class_exec(converter, resource_message_class) do |converter, message|
+          resource actions: [], message: message, converter: converter
         end
       end
 
       it 'can only be invoked once' do
         assert_raises RuntimeError do
-          resource_class.class_eval do
-            resource actions: [], message: ResourceMessage
+          resource_class.class_exec(resource_message_class) do |message|
+            resource actions: [], message: message
           end
         end
       end
@@ -94,7 +103,7 @@ module Protip::ResourceTest # Namespace for internal constants
       end
 
       it 'checks with the converter when setting message types' do
-        converter.expects(:convertible?).once.with(NestedMessage).returns(false)
+        converter.expects(:convertible?).once.with(nested_message_class).returns(false)
         resource = resource_class.new
         assert_raises(ArgumentError) do
           resource.nested_message = 5
@@ -102,14 +111,14 @@ module Protip::ResourceTest # Namespace for internal constants
       end
 
       it 'converts message types to and from their Ruby values when the converter allows' do
-        converter.expects(:convertible?).times(2).with(NestedMessage).returns(true)
-        converter.expects(:to_message).once.with(6, NestedMessage).returns(NestedMessage.new number: 100)
-        converter.expects(:to_object).once.with(NestedMessage.new number: 100).returns 'intern'
+        converter.expects(:convertible?).times(2).with(nested_message_class).returns(true)
+        converter.expects(:to_message).once.with(6, nested_message_class).returns(nested_message_class.new number: 100)
+        converter.expects(:to_object).once.with(nested_message_class.new number: 100).returns 'intern'
 
         resource = resource_class.new
         resource.nested_message = 6
 
-        assert_equal NestedMessage.new(number: 100), resource.message.nested_message, 'object was not converted'
+        assert_equal nested_message_class.new(number: 100), resource.message.nested_message, 'object was not converted'
         assert_equal 'intern', resource.nested_message, 'message was not converted'
       end
     end
@@ -118,9 +127,9 @@ module Protip::ResourceTest # Namespace for internal constants
       let :response do
         Protip::Messages::Array.new({
           messages: [
-            ResourceMessage.new(string: 'banjo', id: 1),
-            ResourceMessage.new(string: 'kazooie', id: 2),
-          ].map(&:encode)
+            resource_message_class.new(string: 'banjo', id: 1),
+            resource_message_class.new(string: 'kazooie', id: 2),
+          ].map{|m| resource_message_class.encode(m)}
         })
       end
 
@@ -129,16 +138,16 @@ module Protip::ResourceTest # Namespace for internal constants
       end
 
       it 'does not exist if the resource is defined without the index action' do
-        resource_class.class_eval do
-          resource actions: [:show], message: ResourceMessage
+        resource_class.class_exec(resource_message_class) do |message|
+          resource actions: [:show], message: message
         end
         refute_respond_to resource_class, :all
       end
 
       describe 'without a query' do
         before do
-          resource_class.class_eval do
-            resource actions: [:index], message: ResourceMessage
+          resource_class.class_exec(resource_message_class) do |message|
+            resource actions: [:index], message: message
           end
         end
 
@@ -182,8 +191,8 @@ module Protip::ResourceTest # Namespace for internal constants
 
       describe 'with a query' do
         before do
-          resource_class.class_eval do
-            resource actions: [:index], message: ResourceMessage, query: ResourceQuery
+          resource_class.class_exec(resource_message_class, resource_query_class) do |message, query|
+            resource actions: [:index], message: message, query: query
           end
         end
 
@@ -191,7 +200,7 @@ module Protip::ResourceTest # Namespace for internal constants
           client.expects(:request)
             .once
             .with(method: Net::HTTP::Get, path: 'base_path',
-              message: ResourceQuery.new(param: 'val'), response_type: Protip::Messages::Array
+              message: resource_query_class.new(param: 'val'), response_type: Protip::Messages::Array
             ).returns(response)
           resource_class.all(param: 'val')
         end
@@ -199,7 +208,7 @@ module Protip::ResourceTest # Namespace for internal constants
         it 'allows a request with an empty query' do
           client.expects(:request)
             .with(method: Net::HTTP::Get, path: 'base_path',
-              message: ResourceQuery.new, response_type: Protip::Messages::Array)
+              message: resource_query_class.new, response_type: Protip::Messages::Array)
           .returns(response)
           resource_class.all
         end
@@ -208,7 +217,7 @@ module Protip::ResourceTest # Namespace for internal constants
 
     describe '.find' do
       let :response do
-        ResourceMessage.new(string: 'pitbull', id: 100)
+        resource_message_class.new(string: 'pitbull', id: 100)
       end
 
       it 'does not exist if the resource has not been defined' do
@@ -216,23 +225,23 @@ module Protip::ResourceTest # Namespace for internal constants
       end
 
       it 'does not exist if the resource is defined without the show action' do
-        resource_class.class_eval do
-          resource actions: [:index], message: ResourceMessage
+        resource_class.class_exec(resource_message_class) do |message|
+          resource actions: [:index], message: message
         end
         refute_respond_to resource_class, :find
       end
 
       describe 'without a query' do
         before do
-          resource_class.class_eval do
-            resource actions: [:show], message: ResourceMessage
+          resource_class.class_exec(resource_message_class) do |message|
+            resource actions: [:show], message: message
           end
         end
 
         it 'requests its message type from the show URL' do
           client.expects(:request)
             .once
-            .with(method: Net::HTTP::Get, path: 'base_path/3', message: nil, response_type: ResourceMessage)
+            .with(method: Net::HTTP::Get, path: 'base_path/3', message: nil, response_type: resource_message_class)
             .returns(response)
           resource_class.find 3
         end
@@ -256,8 +265,8 @@ module Protip::ResourceTest # Namespace for internal constants
 
       describe 'with a query' do
         before do
-          resource_class.class_eval do
-            resource actions: [:show], message: ResourceMessage, query: ResourceQuery
+          resource_class.class_exec(resource_message_class, resource_query_class) do |message, query|
+            resource actions: [:show], message: message, query: query
           end
         end
 
@@ -265,7 +274,7 @@ module Protip::ResourceTest # Namespace for internal constants
           client.expects(:request)
             .once
             .with(method: Net::HTTP::Get, path: 'base_path/5',
-              message: ResourceQuery.new(param: 'val'), response_type: ResourceMessage)
+              message: resource_query_class.new(param: 'val'), response_type: resource_message_class)
             .returns(response)
           resource_class.find 5, param: 'val'
         end
@@ -274,7 +283,7 @@ module Protip::ResourceTest # Namespace for internal constants
           client.expects(:request)
             .once
             .with(method: Net::HTTP::Get, path: 'base_path/6',
-              message: ResourceQuery.new, response_type: ResourceMessage)
+              message: resource_query_class.new, response_type: resource_message_class)
             .returns(response)
           resource_class.find 6
         end
@@ -290,23 +299,23 @@ module Protip::ResourceTest # Namespace for internal constants
       end
       describe 'when a message is given' do
         before do
-          resource_class.class_eval do
-            resource actions: [], message: ResourceMessage
+          resource_class.class_exec(resource_message_class) do |message|
+            resource actions: [], message: message
           end
         end
 
         it 'creates a resource with an empty message if no attributes are provided' do
-          assert_equal ResourceMessage.new, resource_class.new.message
+          assert_equal resource_message_class.new, resource_class.new.message
         end
 
         it 'allows a message to be provided directly' do
-          message = ResourceMessage.new(id: 1)
+          message = resource_message_class.new(id: 1)
           assert_equal message, resource_class.new(message).message
         end
 
         it 'sets attributes when a hash is given' do
           attrs = {id: 2}
-          assert_equal ResourceMessage.new(attrs), resource_class.new(attrs).message
+          assert_equal resource_message_class.new(attrs), resource_class.new(attrs).message
         end
 
         it 'delegates to #assign_attributes on its wrapper object when a hash is given' do
@@ -319,8 +328,8 @@ module Protip::ResourceTest # Namespace for internal constants
 
     describe '#assign_attributes' do
       before do
-        resource_class.class_eval do
-          resource actions: [], message: ResourceMessage
+        resource_class.class_exec(resource_message_class) do |resource_message_class|
+          resource actions: [], message: resource_message_class
         end
       end
       it 'delegates to #assign_attributes on its wrapper object' do
@@ -333,13 +342,13 @@ module Protip::ResourceTest # Namespace for internal constants
 
     describe '#save' do
       let :response do
-        ResourceMessage.new(string: 'pit', string2: 'bull', id: 200)
+        resource_message_class.new(string: 'pit', string2: 'bull', id: 200)
       end
 
       describe 'for a new record' do
         before do
-          resource_class.class_eval do
-            resource actions: [:create], message: ResourceMessage
+          resource_class.class_exec(resource_message_class) do |resource_message_class|
+            resource actions: [:create], message: resource_message_class
           end
           resource_class.any_instance.stubs(:persisted?).returns(false)
         end
@@ -348,7 +357,7 @@ module Protip::ResourceTest # Namespace for internal constants
           client.expects(:request)
             .once
             .with(method: Net::HTTP::Post, path: 'base_path',
-              message: ResourceMessage.new(string: 'time', string2: 'flees'), response_type: ResourceMessage)
+              message: resource_message_class.new(string: 'time', string2: 'flees'), response_type: resource_message_class)
             .returns(response)
 
           # Set via initializer and direct setter
@@ -373,8 +382,8 @@ module Protip::ResourceTest # Namespace for internal constants
 
       describe 'for an existing record' do
         before do
-          resource_class.class_eval do
-            resource actions: [:update], message: ResourceMessage
+          resource_class.class_exec(resource_message_class) do |resource_message_class|
+            resource actions: [:update], message: resource_message_class
           end
           resource_class.any_instance.stubs(:persisted?).returns(true)
         end
@@ -383,7 +392,7 @@ module Protip::ResourceTest # Namespace for internal constants
           client.expects(:request)
             .once
             .with(method: Net::HTTP::Put, path: 'base_path/4',
-              message: ResourceMessage.new(id: 4, string: 'pitbull'), response_type: ResourceMessage)
+              message: resource_message_class.new(id: 4, string: 'pitbull'), response_type: resource_message_class)
             .returns(response)
 
           resource = resource_class.new(id: 4, string: 'pitbull')
@@ -413,8 +422,8 @@ module Protip::ResourceTest # Namespace for internal constants
           exception.stubs(:errors).returns @errors
           client.stubs(:request).raises(exception)
 
-          resource_class.class_eval do
-            resource actions: [:update, :create], message: ResourceMessage
+          resource_class.class_exec(resource_message_class) do |resource_message_class|
+            resource actions: [:update, :create], message: resource_message_class
           end
           @resource = resource_class.new
         end
@@ -447,11 +456,11 @@ module Protip::ResourceTest # Namespace for internal constants
     describe '#destroy' do
       describe 'for an existing record' do
         let :response do
-          ResourceMessage.new(id: 5, string: 'deleted')
+          resource_message_class.new(id: 5, string: 'deleted')
         end
         before do
-          resource_class.class_eval do
-            resource actions: [:destroy], message: ResourceMessage
+          resource_class.class_exec(resource_message_class) do |resource_message_class|
+            resource actions: [:destroy], message: resource_message_class
           end
           resource_class.any_instance.stubs(:persisted?).returns(true)
         end
@@ -459,7 +468,7 @@ module Protip::ResourceTest # Namespace for internal constants
         it 'sends a delete request to the server' do
           client.expects(:request)
             .once
-            .with(method: Net::HTTP::Delete, path: 'base_path/79', message: nil, response_type: ResourceMessage)
+            .with(method: Net::HTTP::Delete, path: 'base_path/79', message: nil, response_type: resource_message_class)
             .returns(response)
           resource_class.new(id: 79).destroy
         end
@@ -478,7 +487,7 @@ module Protip::ResourceTest # Namespace for internal constants
     # called. We assume that a `let(:target)` block has already been defined, which will yield the receiver
     # of the non-resourceful method to be defined (e.g. a resource instance or resource class).
     #
-    # @param defining_method [String] member or collection, e.g. the method to call in a `class_eval` block
+    # @param defining_method [String] member or collection, e.g. the method to call in a `class_val` block
     # @param path [String] the URI that the client should expect to receive for an action of this type
     #   named 'action'
     def self.describe_non_resourceful_action(defining_method, path)
@@ -486,12 +495,12 @@ module Protip::ResourceTest # Namespace for internal constants
       # let(:target) is assumed to have been defined
 
       let :response do
-        ActionResponse.new(response: 'bilbo')
+        action_response_class.new(response: 'bilbo')
       end
 
       before do
-        resource_class.class_eval do
-          resource actions: [], message: ResourceMessage
+        resource_class.class_exec(resource_message_class) do |resource_message_class|
+          resource actions: [], message: resource_message_class
         end
       end
       describe 'without a request or response type' do
@@ -522,8 +531,8 @@ module Protip::ResourceTest # Namespace for internal constants
       end
       describe 'with a request type' do
         before do
-          resource_class.class_eval do
-            send defining_method, action: :action, method: Net::HTTP::Post, request: ActionQuery
+          resource_class.class_exec(action_query_class) do |request|
+            send defining_method, action: :action, method: Net::HTTP::Post, request: request
           end
         end
 
@@ -531,7 +540,7 @@ module Protip::ResourceTest # Namespace for internal constants
           client.expects(:request)
             .once
             .with(method: Net::HTTP::Post, path: path,
-              message: ActionQuery.new(param: 'tom cruise'), response_type: nil)
+              message: action_query_class.new(param: 'tom cruise'), response_type: nil)
             .returns(nil)
           target.action param: 'tom cruise'
         end
@@ -540,7 +549,7 @@ module Protip::ResourceTest # Namespace for internal constants
           client.expects(:request)
             .once
             .with(method: Net::HTTP::Post, path: path,
-              message: ActionQuery.new, response_type: nil)
+              message: action_query_class.new, response_type: nil)
             .returns(nil)
           target.action
         end
@@ -548,8 +557,8 @@ module Protip::ResourceTest # Namespace for internal constants
 
       describe 'with a response type' do
         before do
-          resource_class.class_eval do
-            send defining_method, action: :action, method: Net::HTTP::Get, response: ActionResponse
+          resource_class.class_exec(action_response_class) do |response|
+            send defining_method, action: :action, method: Net::HTTP::Get, response: response
           end
         end
 
@@ -557,7 +566,7 @@ module Protip::ResourceTest # Namespace for internal constants
           client.expects(:request)
             .once
             .with(method: Net::HTTP::Get, path: path,
-              message: nil, response_type: ActionResponse)
+              message: nil, response_type: action_response_class)
             .returns(response)
           target.action
         end

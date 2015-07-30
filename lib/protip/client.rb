@@ -1,3 +1,4 @@
+require 'active_support/concern'
 require 'protip/error'
 require 'net/http'
 
@@ -23,7 +24,7 @@ module Protip
       uri = URI.join base_uri, path
 
       request                 = method.new uri
-      request.body            = (message == nil ? nil : message.encode)
+      request.body            = (message == nil ? nil : message.class.encode(message))
       request['Accept']       = 'application/x-protobuf'
       request.content_type    = 'application/x-protobuf'
 
@@ -45,9 +46,7 @@ module Protip
       if response_type
         begin
           response_type.decode response.body
-        # NotImplementedError catches the "Group is deprecated" exception raised by protobuf on some bad inputs.
-        # We may be able to remove it if we switch to a different protobuf gem.
-        rescue StandardError, NotImplementedError => error
+        rescue StandardError => error
           raise ::Protip::ParseError.new error, request, response
         end
       else

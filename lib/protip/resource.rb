@@ -19,7 +19,7 @@ require 'protip/error'
 require 'protip/standard_converter'
 require 'protip/wrapper'
 
-require 'protip/messages/array.pb'
+require 'protip/messages/array'
 
 module Protip
   module Resource
@@ -160,7 +160,7 @@ module Protip
 
         # Define attribute readers/writers
         @message = message
-        @message.all_fields.each do |field|
+        @message.descriptor.each do |field|
           def_delegator :@wrapper, :"#{field.name}"
           def_delegator :@wrapper, :"#{field.name}="
         end
