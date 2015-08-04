@@ -20,7 +20,7 @@ end
 
 desc 'Compile protobuf sources to Ruby classes.'
 task compile: :clean do
-  FileList['definitions/protip/messages/*.proto'].each do |file|
+  ::Dir.glob('definitions/**/*.proto').each do |file|
     command = "protoc -Idefinitions --ruby_out=lib #{file}"
     puts command
     system command
