@@ -20,7 +20,7 @@ module Protip
         if name =~ /=$/
           message.class.descriptor.any?{|field| :"#{field.name}=" == name.to_sym}
         else
-          message.class.descriptor.any?{|field| field.name == name.to_sym}
+          message.class.descriptor.any?{|field| field.name.to_sym == name.to_sym}
         end
       end
     end
@@ -61,14 +61,16 @@ module Protip
     # @return [Protip::Wrapper] The created field
     def build(field_name, attributes = {})
 
-      field = message.class.descriptor.detect{|field| field.name == field_name.to_sym}
-      if !field.type == :message
+      field = message.class.descriptor.detect{|field| field.name.to_sym == field_name.to_sym}
+      if !field
+        raise "No field named #{field_name}"
+      elsif field.type != :message
         raise "Can only build message fields: #{field_name}"
-      elsif converter.convertible?(field.type_class)
+      elsif converter.convertible?(field.subtype.msgclass)
         raise "Cannot build a convertible field: #{field.name}"
       end
 
-      message[field_name] = field.type_class.new
+      message[field_name.to_s] = field.subtype.msgclass.new
       wrapper = get(field)
       wrapper.assign_attributes attributes
       wrapper
@@ -90,7 +92,7 @@ module Protip
         end
 
         # For inconvertible nested messages, the value should be a hash - just pass it through to the nested message
-        if field.type == :message && !converter.convertible?(field.subtype)
+        if field.type == :message && !converter.convertible?(field.subtype.msgclass)
           wrapper = get(field) || build(field.name) # Create the field if it doesn't already exist
           wrapper.assign_attributes value
         # Otherwise, if the field is a convertible message or a simple type, we set the value directly
@@ -112,7 +114,10 @@ module Protip
     end
 
     def ==(wrapper)
-      wrapper.is_a?(self.class) && message == wrapper.message && converter == wrapper.converter
+      wrapper.class == self.class &&
+        wrapper.message.class == message.class &&
+        message.class.encode(message) == wrapper.message.class.encode(wrapper.message) &&
+        converter == wrapper.converter
     end
 
     private
@@ -122,7 +127,7 @@ module Protip
         if message[field.name].nil?
           nil
         else
-          if converter.convertible?(field.subtype)
+          if converter.convertible?(field.subtype.msgclass)
             converter.to_object message[field.name]
           else
             self.class.new message[field.name], converter
@@ -137,8 +142,8 @@ module Protip
       if field.type == :message
         if value.is_a?(field.subtype.msgclass)
           message[field.name] = value
-        elsif converter.convertible?(field.subtype)
-          message[field.name] = converter.to_message value, field.subtype
+        elsif converter.convertible?(field.subtype.msgclass)
+          message[field.name] = converter.to_message value, field.subtype.msgclass
         else
           raise ArgumentError.new "Cannot convert from Ruby object: \"#{field}\""
         end

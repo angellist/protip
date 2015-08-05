@@ -1,5 +1,7 @@
 require 'test_helper'
 
+require 'google/protobuf'
+require 'protip/converter'
 require 'protip/wrapper'
 
 module Protip::WrapperTest # namespace for internal constants
@@ -32,7 +34,7 @@ module Protip::WrapperTest # namespace for internal constants
     end
 
     let(:wrapped_message) do
-      message_class.new(inner: {value: 25}, string: 'test')
+      message_class.new(inner: inner_message_class.new(value: 25), string: 'test')
     end
 
     let(:wrapper) do
@@ -138,7 +140,9 @@ module Protip::WrapperTest # namespace for internal constants
 
         it 'delegates to itself when setting nested attributes on inconvertible message fields' do
           inner = mock
-          wrapper.stubs(:get).with(wrapped_message.class.fields.detect{|f| f.name == :inner}).returns(inner)
+          field = wrapped_message.class.descriptor.detect{|f| f.name.to_sym == :inner}
+          raise 'unexpected' if !field
+          wrapper.stubs(:get).with(field).returns(inner)
           inner.expects(:assign_attributes).once.with(value: 50, note: 'noted')
           wrapper.assign_attributes inner: {value: 50, note: 'noted'}
         end
@@ -153,8 +157,8 @@ module Protip::WrapperTest # namespace for internal constants
 
       it 'returns false when messages are not equal' do
         alternate_message = message_class.new
-        refute_equal alternate_message, wrapped_message # Sanity check
-        refute_equal wrapper, Protip::Wrapper.new(alternate_message, converter)
+        refute_equal alternate_message, wrapper.message # Sanity check
+        refute_equal wrapper, Protip::Wrapper.new(alternate_message, wrapper.converter)
       end
 
       it 'returns false when converters are not equal' do
@@ -182,7 +186,7 @@ module Protip::WrapperTest # namespace for internal constants
 
       it 'converts convertible messages' do
         converter.expects(:convertible?).with(inner_message_class).once.returns(true)
-        converter.expects(:to_object).with(inner_message_class.new(value: 25)).returns 40
+        converter.expects(:to_object).once.with(inner_message_class.new(value: 25)).returns 40
         assert_equal 40, wrapper.inner
       end
 
