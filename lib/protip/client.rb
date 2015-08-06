@@ -24,7 +24,7 @@ module Protip
       uri = URI.join base_uri, path
 
       request                 = method.new uri
-      request.body            = (message == nil ? nil : message.class.encode(message))
+      request.body            = (message ? message.class.encode(message) : nil)
       request['Accept']       = 'application/x-protobuf'
       request.content_type    = 'application/x-protobuf'
 

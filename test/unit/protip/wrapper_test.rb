@@ -22,6 +22,11 @@ module Protip::WrapperTest # namespace for internal constants
         add_message 'message' do
           optional :inner, :message, 1, 'inner_message'
           optional :string, :string, 2
+
+          repeated :inners, :message, 3, 'inner_message'
+          repeated :strings, :string, 4
+
+          optional :inner_blank, :message, 5, 'inner_message'
         end
       end
       pool
@@ -45,10 +50,12 @@ module Protip::WrapperTest # namespace for internal constants
       it 'adds setters for message fields' do
         assert_respond_to wrapper, :string=
         assert_respond_to wrapper, :inner=
+        assert_respond_to wrapper, :inner_blank=
       end
       it 'adds getters for message fields' do
         assert_respond_to wrapper, :string
         assert_respond_to wrapper, :inner
+        assert_respond_to wrapper, :inner_blank
       end
       it 'responds to standard defined methods' do
         assert_respond_to wrapper, :as_json
@@ -65,6 +72,14 @@ module Protip::WrapperTest # namespace for internal constants
           wrapper.build(:string)
         end
       end
+
+      it 'raises an error when building a repeated primitive field' do
+        assert_raises RuntimeError do
+          wrapper.build(:strings)
+        end
+      end
+
+      # TODO: How to add a new message to a repeated message field?
 
       it 'raises an error when building a convertible message' do
         converter.stubs(:convertible?).with(inner_message_class).returns(true)
@@ -108,6 +123,11 @@ module Protip::WrapperTest # namespace for internal constants
       it 'assigns primitive fields directly' do
         wrapper.assign_attributes string: 'another thing'
         assert_equal 'another thing', wrapped_message.string
+      end
+
+      it 'assigns repeated primitive fields from an enumerator' do
+        wrapper.assign_attributes strings: ['one', 'two']
+        assert_equal ['one', 'two'], wrapped_message.strings
       end
 
       it 'assigns convertible message fields directly' do
@@ -195,6 +215,12 @@ module Protip::WrapperTest # namespace for internal constants
         converter.expects(:to_object).never
         assert_equal Protip::Wrapper.new(inner_message_class.new(value: 25), converter), wrapper.inner
       end
+
+      it 'returns nil for messages that have not been set' do
+        converter.expects(:convertible?).never
+        converter.expects(:to_object).never
+        assert_equal nil, wrapper.inner_blank
+      end
     end
 
     describe '#set' do
@@ -212,6 +238,15 @@ module Protip::WrapperTest # namespace for internal constants
 
         wrapper.inner = 40
         assert_equal inner_message_class.new(value: 30), wrapper.message.inner
+      end
+
+      it 'removes message fields when assigning nil' do
+        skip('pending next gem release, see https://github.com/google/protobuf/commit/64678265c5ae28998d031900c2de52419a8ed7e4')
+        converter.expects(:convertible?).never
+        converter.expects(:to_message).never
+
+        wrapper.inner = nil
+        assert_equal nil, wrapper_message.inner
       end
 
       it 'raises an error when setting inconvertible messages' do

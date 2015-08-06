@@ -129,7 +129,7 @@ module Protip::ResourceTest # Namespace for internal constants
           messages: [
             resource_message_class.new(string: 'banjo', id: 1),
             resource_message_class.new(string: 'kazooie', id: 2),
-          ].map{|m| resource_message_class.encode(m)}
+          ].map{|m| resource_message_class.encode(m).encode('UTF-8')}
         })
       end
 
@@ -429,18 +429,18 @@ module Protip::ResourceTest # Namespace for internal constants
         end
 
         it 'parses base errors' do
-          @errors.messages = ['message1', 'message2']
+          @errors.messages += ['message1', 'message2']
           @resource.save
 
           assert_equal ['message1', 'message2'], @resource.errors['base']
         end
 
         it 'parses field errors' do
-          @errors.field_errors = [
+          [
             Protip::Messages::FieldError.new(field: 'string', message: 'message1'),
             Protip::Messages::FieldError.new(field: 'id', message: 'message2'),
             Protip::Messages::FieldError.new(field: 'string', message: 'message3'),
-          ]
+          ].each{|field_error| @errors.field_errors.push field_error}
           @resource.save
 
           assert_equal ['message1', 'message3'], @resource.errors['string']

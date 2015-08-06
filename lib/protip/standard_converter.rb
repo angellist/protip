@@ -22,10 +22,10 @@ module Protip
     }
 
     ## Standard wrappers
-    %w(Int64Value Int32Value UInt64Value UInt32Value DoubleValue FloatValue BoolValue StringValue BytesValue).map{|type| "google/protobuf/#{type}"}.each do |name|
+    %w(Int64 Int32 UInt64 UInt32 Double Float Bool String Bytes).map{|type| "google.protobuf.#{type}Value"}.each do |name|
       @conversions[name] = {
         to_object: ->(message) { message.value },
-        to_mesage: lambda do |value, message_class|
+        to_message: lambda do |value, message_class|
           message_class.new value: value
         end
       }
@@ -36,7 +36,7 @@ module Protip
     end
 
     def to_object(message)
-      self.class.conversions[message.class][:to_object].call(message)
+      self.class.conversions[message.class.descriptor.name][:to_object].call(message)
     end
 
     def to_message(object, message_class)

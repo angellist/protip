@@ -124,7 +124,7 @@ module Protip
 
     def get(field)
       if field.type == :message
-        if message[field.name].nil?
+        if nil == message[field.name]
           nil
         else
           if converter.convertible?(field.subtype.msgclass)
@@ -139,16 +139,27 @@ module Protip
     end
 
     def set(field, value)
+      if field.label == :repeated
+        message[field.name].replace value.map{|v| to_protobuf_value field, v}
+      else
+        message[field.name] = to_protobuf_value(field, value)
+      end
+    end
+
+    # Helper for setting values - converts the value for the given field to one that we can set directly
+    def to_protobuf_value(field, value)
       if field.type == :message
-        if value.is_a?(field.subtype.msgclass)
-          message[field.name] = value
+        if nil == value
+          nil
+        elsif value.is_a?(field.subtype.msgclass)
+          value
         elsif converter.convertible?(field.subtype.msgclass)
-          message[field.name] = converter.to_message value, field.subtype.msgclass
+          converter.to_message value, field.subtype.msgclass
         else
           raise ArgumentError.new "Cannot convert from Ruby object: \"#{field}\""
         end
       else
-        message[field.name] = value
+        value
       end
     end
   end

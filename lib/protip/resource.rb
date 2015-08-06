@@ -269,13 +269,13 @@ module Protip
     end
 
     def persisted?
-      message.field?(:id)
+      id != nil
     end
 
     def attributes
       # Like `.as_json`, but includes nil fields to match ActiveRecord behavior.
-      self.class.message.all_fields.map{|field| field.name}.inject({}) do |hash, attribute_name|
-        hash[attribute_name] = message.field?(attribute_name) ? public_send(attribute_name).as_json : nil
+      self.class.message.descriptor.map{|field| field.name}.inject({}) do |hash, attribute_name|
+        hash[attribute_name] = public_send(attribute_name)
         hash
       end
     end
