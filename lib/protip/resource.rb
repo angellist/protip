@@ -141,22 +141,24 @@ module Protip
       attr_accessor :client
 
       attr_reader :message
-      attr_reader :converter
 
       attr_writer :base_path
       def base_path
         @base_path == nil ? raise(RuntimeError.new 'Base path not yet set') : @base_path.gsub(/\/$/, '')
       end
 
+      attr_writer :converter
+      def converter
+        @converter || (@_standard_converter ||= Protip::StandardConverter.new)
+      end
+
       private
 
       # Primary entry point for defining resourceful behavior.
-      def resource(actions:, message:, query: nil, converter: Protip::StandardConverter.new)
+      def resource(actions:, message:, query: nil)
         if @message
           raise RuntimeError.new('Only one call to `resource` is allowed')
         end
-
-        @converter = converter
 
         # Define attribute readers/writers
         @message = message

@@ -69,7 +69,8 @@ module Protip::ResourceTest # Namespace for internal constants
 
       before do
         resource_class.class_exec(converter, resource_message_class) do |converter, message|
-          resource actions: [], message: message, converter: converter
+          resource actions: [], message: message
+          self.converter = converter
         end
       end
 
@@ -590,6 +591,18 @@ module Protip::ResourceTest # Namespace for internal constants
         resource_class
       end
       describe_non_resourceful_action 'collection', 'base_path/action'
+    end
+
+    describe '.converter' do
+      describe 'default value' do
+        it 'defaults to the standard converter' do
+          assert_instance_of Protip::StandardConverter, resource_class.converter
+        end
+
+        it 're-uses the same converter on repeated accesses' do
+          assert_same resource_class.converter, resource_class.converter
+        end
+      end
     end
   end
 end
