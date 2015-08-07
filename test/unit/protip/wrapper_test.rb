@@ -241,12 +241,11 @@ module Protip::WrapperTest # namespace for internal constants
       end
 
       it 'removes message fields when assigning nil' do
-        skip('pending next gem release, see https://github.com/google/protobuf/commit/64678265c5ae28998d031900c2de52419a8ed7e4')
         converter.expects(:convertible?).never
         converter.expects(:to_message).never
 
         wrapper.inner = nil
-        assert_equal nil, wrapper_message.inner
+        assert_equal nil, wrapper.message.inner
       end
 
       it 'raises an error when setting inconvertible messages' do
