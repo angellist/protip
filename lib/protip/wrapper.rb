@@ -91,10 +91,14 @@ module Protip
           raise ArgumentError.new("Unrecognized field: #{field_name}")
         end
 
-        # For inconvertible nested messages, the value should be a hash - just pass it through to the nested message
+        # For inconvertible nested messages, the value should be either a hash or a message
         if field.type == :message && !converter.convertible?(field.subtype.msgclass)
-          wrapper = get(field) || build(field.name) # Create the field if it doesn't already exist
-          wrapper.assign_attributes value
+          if value.is_a?(field.subtype.msgclass) # If a message, set it directly
+            set(field, value)
+          else # If a hash, pass it through to the nested message
+            wrapper = get(field) || build(field.name) # Create the field if it doesn't already exist
+            wrapper.assign_attributes value
+          end
         # Otherwise, if the field is a convertible message or a simple type, we set the value directly
         else
           set(field, value)

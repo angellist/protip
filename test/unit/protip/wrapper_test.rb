@@ -130,11 +130,23 @@ module Protip::WrapperTest # namespace for internal constants
         assert_equal ['one', 'two'], wrapped_message.strings
       end
 
-      it 'assigns convertible message fields directly' do
-        converter.stubs(:convertible?).with(inner_message_class).returns(true)
-        converter.expects(:to_message).once.with(45, inner_message_class).returns(inner_message_class.new(value: 43))
-        wrapper.assign_attributes inner: 45
-        assert_equal inner_message_class.new(value: 43), wrapped_message.inner
+      describe 'when assigning convertible message fields' do
+        before do
+          converter.stubs(:convertible?).with(inner_message_class).returns(true)
+        end
+
+        it 'converts Ruby values to protobuf messages' do
+          converter.stubs(:convertible?).with(inner_message_class).returns(true)
+          converter.expects(:to_message).once.with(45, inner_message_class).returns(inner_message_class.new(value: 43))
+          wrapper.assign_attributes inner: 45
+          assert_equal inner_message_class.new(value: 43), wrapped_message.inner
+        end
+
+        it 'allows messages to be assigned directly' do
+          message = inner_message_class.new
+          wrapper.assign_attributes inner: message
+          assert_same message, wrapper.message.inner
+        end
       end
 
       it 'returns nil' do
@@ -158,13 +170,19 @@ module Protip::WrapperTest # namespace for internal constants
           assert_equal inner_message_class.new(value: 60, note: 'updated'), wrapped_message.inner
         end
 
-        it 'delegates to itself when setting nested attributes on inconvertible message fields' do
+        it 'delegates to #assign_attributes on a nested wrapper when setting nested attributes on inconvertible message fields' do
           inner = mock
           field = wrapped_message.class.descriptor.detect{|f| f.name.to_sym == :inner}
           raise 'unexpected' if !field
           wrapper.stubs(:get).with(field).returns(inner)
           inner.expects(:assign_attributes).once.with(value: 50, note: 'noted')
           wrapper.assign_attributes inner: {value: 50, note: 'noted'}
+        end
+
+        it 'allows messages to be assigned directly' do
+          message = inner_message_class.new
+          wrapper.assign_attributes inner: message
+          assert_same message, wrapper.message.inner
         end
       end
     end
