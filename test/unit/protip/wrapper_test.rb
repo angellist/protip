@@ -215,6 +215,69 @@ module Protip::WrapperTest # namespace for internal constants
       end
     end
 
+    describe '#convert' do
+      let :wrapped_message do
+        m = message_class.new({
+          string: 'test',
+          inner: inner_message_class.new(value: 1),
+        })
+        m.strings += %w(test1 test2)
+        [2, 3].each do |i|
+          m.inners.push inner_message_class.new(value: i)
+        end
+        m
+      end
+      before do
+        converter.stubs(:convertible?).with(message_class).returns false
+      end
+
+      it 'never checks the convertibility of the top-level message' do
+        converter.expects(:convertible?).with(message_class).never
+        converter.stubs(:convertible?).with(inner_message_class).returns false
+        assert_instance_of Hash, wrapper.to_h
+      end
+
+      describe 'with a nested convertible message' do
+        before do
+          converter.stubs(:convertible?).with(inner_message_class).returns true
+          [1, 2, 3].each{|i| converter.stubs(:to_object).with(inner_message_class.new(value: i)).returns(i)}
+        end
+        it 'returns a hash with the nested message converted' do
+          assert_equal 1, wrapper.to_h[:inner]
+        end
+        it 'converts a repeated instance of the nested message to an array' do
+          assert_equal [2, 3], wrapper.to_h[:inners]
+        end
+      end
+
+      describe 'with a nested inconvertible message' do
+        before do
+          converter.stubs(:convertible?).with(inner_message_class).returns false
+        end
+
+        it 'contains keys for all fields of the parent message' do
+          assert_equal %i(string strings inner inners inner_blank).sort, wrapper.to_h.keys.sort
+        end
+        it 'assigns nil for missing nested messages' do
+          hash = wrapper.to_h
+          assert hash.has_key?(:inner_blank)
+          assert_nil hash[:inner_blank]
+        end
+        it 'assigns a hash for a scalar instance of the inconvertible message' do
+          assert_equal({value: 1, note: ''}, wrapper.to_h[:inner])
+        end
+        it 'assigns an array of hashes for a repeated instance of the inconvertible message' do
+          assert_equal([{value: 2, note: ''}, {value: 3, note: ''}], wrapper.to_h[:inners])
+        end
+        it 'assigns primitive fields directly' do
+          assert_equal 'test', wrapper.to_h[:string]
+        end
+        it 'assigns an array for repeated primitive fields' do
+          assert_equal %w(test1 test2), wrapper.to_h[:strings]
+        end
+      end
+    end
+
     describe '#get' do
       it 'does not convert simple fields' do
         converter.expects(:convertible?).never

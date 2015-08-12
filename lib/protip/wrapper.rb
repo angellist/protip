@@ -109,12 +109,23 @@ module Protip
     end
 
     def as_json
-      json = {}
-      message.class.descriptor.map(&:name).each do |name|
-        value = public_send(name)
-        json[name.to_s] = value.respond_to?(:as_json) ? value.as_json : value
+      convert.as_json
+    end
+
+    # @return [Hash] A hash whose keys are the fields of our message, and whose values are the Ruby representations
+    #   (either nested hashes or converted messages) of the field values.
+    def to_h
+      hash = {}
+      message.class.descriptor.each do |field|
+        value = public_send(field.name)
+        if field.label == :repeated
+          value.map!{|v| v.is_a?(self.class) ? v.to_h : v}
+        else
+          value = (value.is_a?(self.class) ? value.to_h : value)
+        end
+        hash[field.name.to_sym] = value
       end
-      json
+      hash
     end
 
     def ==(wrapper)
@@ -127,18 +138,25 @@ module Protip
     private
 
     def get(field)
+      if field.label == :repeated
+        message[field.name].map{|value| to_ruby_value field, value}
+      else
+        to_ruby_value field, message[field.name]
+      end
+    end
+
+    # Helper for getting values - converts the value for the given field to one that we can return to the user
+    def to_ruby_value(field, value)
       if field.type == :message
-        if nil == message[field.name]
+        if nil == value
           nil
+        elsif converter.convertible?(field.subtype.msgclass)
+          converter.to_object value
         else
-          if converter.convertible?(field.subtype.msgclass)
-            converter.to_object message[field.name]
-          else
-            self.class.new message[field.name], converter
-          end
+          self.class.new value, converter
         end
       else
-        message[field.name]
+        value
       end
     end
 
