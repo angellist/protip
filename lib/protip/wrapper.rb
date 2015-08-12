@@ -109,7 +109,7 @@ module Protip
     end
 
     def as_json
-      convert.as_json
+      to_h.as_json
     end
 
     # @return [Hash] A hash whose keys are the fields of our message, and whose values are the Ruby representations
