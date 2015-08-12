@@ -92,9 +92,11 @@ describe 'Protip::Resource (functional)' do
   describe '.all' do
     describe 'with a successful server response' do
       before do
+        # If this is erroring out, change :string to :bytes in array.rb - the Ruby compiler currently compiles
+        # incorrectly.
         response = Protip::Messages::Array.new(messages: ['bilbo', 'baggins'].each_with_index.map do |name, index|
           message = resource_message_class.new(id: int_message_class.new(value: index), ordered_tests: name, nested_int: int_message_class.new(value: index + 42))
-          message.class.encode(message).encode('UTF-8')
+          message.class.encode(message)
         end)
         stub_request(:get, 'https://external.service/resources')
           .to_return body: response.class.encode(response)

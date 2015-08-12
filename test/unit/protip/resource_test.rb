@@ -130,7 +130,7 @@ module Protip::ResourceTest # Namespace for internal constants
           messages: [
             resource_message_class.new(string: 'banjo', id: 1),
             resource_message_class.new(string: 'kazooie', id: 2),
-          ].map{|m| resource_message_class.encode(m).encode('UTF-8')}
+          ].map{|m| resource_message_class.encode(m)}
         })
       end
 

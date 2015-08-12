@@ -5,7 +5,7 @@ require 'google/protobuf'
 
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "protip.messages.Array" do
-    repeated :messages, :string, 1
+    repeated :messages, :bytes, 1
   end
 end
 
