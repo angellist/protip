@@ -21,6 +21,7 @@ module Protip::ResourceTest # Namespace for internal constants
 
         add_message 'resource_query' do
           optional :param, :string, 1
+          optional :nested_message, :message, 2, 'nested_message'
         end
 
         # Give these things a different structure than resource_query_class,
@@ -28,6 +29,7 @@ module Protip::ResourceTest # Namespace for internal constants
         # type but still yielding correct results.
         add_message 'action_query' do
           optional :param, :string, 4
+          optional :nested_message, :message, 5, 'nested_message'
         end
         add_message 'action_response' do
           optional :response, :string, 3
@@ -124,6 +126,73 @@ module Protip::ResourceTest # Namespace for internal constants
       end
     end
 
+    # index/find/member/collection actions should all convert more complex Ruby objects to submessages in their
+    # queries
+    def self.it_converts_query_parameters
+      before do
+        # Sanity check - the user should specify all these variables in "let" statements
+        # http_method, path, query_class, and response specify the expected call to the client
+        # nested_message_field specifies the field on the query class that may or may not be convertible, and should
+        #   refer to a submessage field of type nested_message_class
+        # invoke_method! should call the desired method, assuming that +parameters+ contains the query parameters to
+        #   pass in (e.g. `resource_class.all(parameters)` or `resource_class.find('id', parameters)`)
+        %i(
+          http_method
+          path
+          query_class
+          response
+          nested_message_field
+          invoke_method!
+        ).each do |name|
+          raise "Must define #{name} before invoking `it_converts_query_parameters`" unless respond_to?(name)
+        end
+
+        # All tests expect the same HTTP call
+        client.expects(:request)
+          .once
+          .with(method: http_method, path: path,
+            message: query_class.new(:"#{nested_message_field}" => nested_message_class.new(number: 43)),
+            response_type: (nil == response ? nil : response.class),
+          ).returns(response)
+      end
+
+
+
+      describe 'with a convertible message' do
+        before do
+          resource_class.converter.stubs(:convertible?).with(nested_message_class).returns(true)
+          resource_class.converter.stubs(:to_message).with(42, nested_message_class).returns(nested_message_class.new(number: 43))
+        end
+
+        let(:parameters) { {"#{nested_message_field}" => 42} }
+        it 'converts query parameters' do
+          invoke_method!
+        end
+      end
+
+      describe 'with an inconvertible message' do
+        before do
+          resource_class.converter.stubs(:convertible?).with(nested_message_class).returns(false)
+          resource_class.converter.expects(:to_message).never
+        end
+
+        describe 'with a hash' do
+          let(:parameters) { {"#{nested_message_field}" => {number: 43}} }
+          it 'allows a hash to be provided for the nested message' do
+            invoke_method!
+          end
+        end
+
+        describe 'with a submessage' do
+          let(:parameters) { {"#{nested_message_field}" => nested_message_class.new(number: 43)} }
+          it 'allows a submessage to be provided directly' do
+            invoke_method!
+          end
+        end
+      end
+    end
+
+
     describe '.all' do
       let :response do
         Protip::Messages::Array.new({
@@ -213,6 +282,15 @@ module Protip::ResourceTest # Namespace for internal constants
           .returns(response)
           resource_class.all
         end
+
+        describe '(convertibility)' do
+          let(:http_method) { Net::HTTP::Get }
+          let(:path) { 'base_path' }
+          let(:query_class) { resource_query_class }
+          let(:nested_message_field) { :nested_message }
+          let(:invoke_method!) { resource_class.all(parameters) }
+          it_converts_query_parameters
+        end
       end
     end
 
@@ -287,6 +365,15 @@ module Protip::ResourceTest # Namespace for internal constants
               message: resource_query_class.new, response_type: resource_message_class)
             .returns(response)
           resource_class.find 6
+        end
+
+        describe '(convertibility)' do
+          let(:http_method) { Net::HTTP::Get }
+          let(:path) { 'base_path/5' }
+          let(:query_class) { resource_query_class }
+          let(:nested_message_field) { :nested_message }
+          let(:invoke_method!) { resource_class.find 5, parameters }
+          it_converts_query_parameters
         end
       end
     end
@@ -537,6 +624,8 @@ module Protip::ResourceTest # Namespace for internal constants
           end
         end
 
+        let(:response) { nil }
+
         it 'sends a request with a body to the expected endpoint' do
           client.expects(:request)
             .once
@@ -553,6 +642,15 @@ module Protip::ResourceTest # Namespace for internal constants
               message: action_query_class.new, response_type: nil)
             .returns(nil)
           target.action
+        end
+
+        describe '(convertibility)' do
+          let(:http_method) { Net::HTTP::Post }
+          let(:path) { path }
+          let(:query_class) { action_query_class }
+          let(:nested_message_field) { :nested_message }
+          let(:invoke_method!) { target.action(parameters) }
+          it_converts_query_parameters
         end
       end
 

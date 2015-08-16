@@ -178,13 +178,17 @@ module Protip
         if query
           if actions.include?(:show)
             define_singleton_method :find do |id, query_params = {}|
-              SearchMethods.show(self, id, query.new(query_params))
+              wrapper = ::Protip::Wrapper.new(query.new, converter)
+              wrapper.assign_attributes query_params
+              SearchMethods.show(self, id, wrapper.message)
             end
           end
 
           if actions.include?(:index)
             define_singleton_method :all do |query_params = {}|
-              SearchMethods.index(self, query.new(query_params))
+              wrapper = ::Protip::Wrapper.new(query.new, converter)
+              wrapper.assign_attributes query_params
+              SearchMethods.index(self, wrapper.message)
             end
           end
         else
@@ -209,7 +213,9 @@ module Protip
       def member(action:, method:, request: nil, response: nil)
         if request
           define_method action do |request_params = {}|
-            ExtraMethods.member self, action, method, request.new(request_params), response
+            wrapper = ::Protip::Wrapper.new(request.new, self.class.converter)
+            wrapper.assign_attributes request_params
+            ExtraMethods.member self, action, method, wrapper.message, response
           end
         else
           define_method action do
@@ -221,7 +227,9 @@ module Protip
       def collection(action:, method:, request: nil, response: nil)
         if request
           define_singleton_method action do |request_params = {}|
-            ExtraMethods.collection self, action, method, request.new(request_params), response
+            wrapper = ::Protip::Wrapper.new(request.new, converter)
+            wrapper.assign_attributes request_params
+            ExtraMethods.collection self, action, method, wrapper.message, response
           end
         else
           define_singleton_method action do
