@@ -165,6 +165,9 @@ module Protip
         @message.descriptor.each do |field|
           def_delegator :@wrapper, :"#{field.name}"
           def_delegator :@wrapper, :"#{field.name}="
+          if ::Protip::Wrapper.matchable?(field)
+            def_delegator :@wrapper, :"#{field.name}?"
+          end
         end
 
         # Validate arguments

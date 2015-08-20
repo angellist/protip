@@ -17,10 +17,10 @@ module Protip
       if super
         true
       else
-        if name =~ /=$/
-          message.class.descriptor.any?{|field| :"#{field.name}=" == name.to_sym}
-        else
-          message.class.descriptor.any?{|field| field.name.to_sym == name.to_sym}
+        message.class.descriptor.any? do |field|
+          # getter, setter, and in the scalar enum case, query method
+          regex = /^#{field.name}[=#{self.class.matchable?(field) ? '\\?' : ''}]?$/
+          name.to_s =~ regex
         end
       end
     end
@@ -29,6 +29,9 @@ module Protip
       if (name =~ /=$/ && field = message.class.descriptor.detect{|field| :"#{field.name}=" == name})
         raise ArgumentError unless args.length == 1
         set field, args[0]
+      elsif (name =~ /\?$/ && field = message.class.descriptor.detect{|field| self.class.matchable?(field) && :"#{field.name}?" == name})
+        raise ArgumentError unless args.length == 1
+        matches? field, args[0]
       elsif (field = message.class.descriptor.detect{|field| field.name.to_sym == name})
         raise ArgumentError unless args.length == 0
         get field
@@ -135,6 +138,14 @@ module Protip
         converter == wrapper.converter
     end
 
+    class << self
+      # Semi-private check for whether a field should have an associated query method (e.g. +field_name?+).
+      # @return [Boolean] Whether the field should have an associated query method on wrappers.
+      def matchable?(field)
+        field.type == :enum && field.label != :repeated
+      end
+    end
+
     private
 
     def get(field)
@@ -183,6 +194,19 @@ module Protip
       else
         value
       end
+    end
+
+    def matches?(field, value)
+      enum = field.subtype
+      if value.is_a?(Fixnum)
+        sym = enum.lookup_value(value)
+      else
+        sym = value.to_sym
+        sym = nil if (nil == enum.lookup_name(sym))
+      end
+      raise RangeError.new("#{field} has no value #{value}") if nil == sym
+      get(field) == sym
+
     end
   end
 end

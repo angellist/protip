@@ -14,6 +14,11 @@ module Protip::WrapperTest # namespace for internal constants
     let :pool do
       pool = Google::Protobuf::DescriptorPool.new
       pool.build do
+        add_enum 'number' do
+          value :ZERO, 0
+          value :ONE, 1
+          value :TWO, 2
+        end
         add_message 'inner_message' do
           optional :value, :int64, 1
           optional :note, :string, 2
@@ -27,6 +32,9 @@ module Protip::WrapperTest # namespace for internal constants
           repeated :strings, :string, 4
 
           optional :inner_blank, :message, 5, 'inner_message'
+
+          optional :number, :enum, 6, 'number'
+          repeated :numbers, :enum, 7, 'number'
         end
       end
       pool
@@ -57,12 +65,32 @@ module Protip::WrapperTest # namespace for internal constants
         assert_respond_to wrapper, :inner
         assert_respond_to wrapper, :inner_blank
       end
+      it 'adds queries for scalar enum fields' do
+        assert_respond_to wrapper, :number?
+      end
+      it 'does not add queries for repeated enum fields' do
+        refute_respond_to wrapper, :numbers?
+      end
+      it 'does not add queries for non-enum fields' do
+        refute_respond_to wrapper, :inner?
+      end
       it 'responds to standard defined methods' do
         assert_respond_to wrapper, :as_json
       end
-      it 'does not add other setters/getters' do
+      it 'does not add other setters/getters/queries' do
         refute_respond_to wrapper, :foo=
         refute_respond_to wrapper, :foo
+        refute_respond_to wrapper, :foo?
+      end
+      it 'does not add methods which partially match message fields' do
+        refute_respond_to wrapper, :xinner
+        refute_respond_to wrapper, :xinner=
+        refute_respond_to wrapper, :xnumber?
+        refute_respond_to wrapper, :innerx
+        refute_respond_to wrapper, :innerx=
+        refute_respond_to wrapper, :'inner=x'
+        refute_respond_to wrapper, :numberx?
+        refute_respond_to wrapper, :'number?x'
       end
     end
 
@@ -256,7 +284,7 @@ module Protip::WrapperTest # namespace for internal constants
         end
 
         it 'contains keys for all fields of the parent message' do
-          assert_equal %i(string strings inner inners inner_blank).sort, wrapper.to_h.keys.sort
+          assert_equal %i(string strings inner inners inner_blank number numbers).sort, wrapper.to_h.keys.sort
         end
         it 'assigns nil for missing nested messages' do
           hash = wrapper.to_h
@@ -343,6 +371,66 @@ module Protip::WrapperTest # namespace for internal constants
 
         wrapper.inner = inner_message_class.new(value: 50)
         assert_equal inner_message_class.new(value: 50), wrapper.message.inner
+      end
+
+      it 'raises an error when setting an enum field to an undefined value' do
+        assert_raises RangeError do
+          wrapper.number = :NAN
+        end
+      end
+    end
+
+    describe '#matches?' do
+      it 'is not defined for non-enum fields' do
+        assert_raises NoMethodError do
+          wrapper.inner?(:test)
+        end
+      end
+
+      it 'is not defined for repeated enum fields' do
+        assert_raises NoMethodError do
+          wrapper.numbers?(:test)
+        end
+      end
+
+      describe 'when given a Fixnum' do
+        before do
+          wrapper.number = :ONE
+        end
+        it 'returns true when the number matches the value' do
+          assert wrapper.number?(1)
+        end
+        it 'returns false when the number does not match the value' do
+          refute wrapper.number?(0)
+        end
+        it 'raises an error when the number is not a valid value for the enum' do
+          assert_raises RangeError do
+            wrapper.number?(3)
+          end
+        end
+      end
+
+      describe 'when given a non-Fixnum' do
+        before do
+          wrapper.number = :TWO
+        end
+        it 'returns true when its symbolized argument matches the value' do
+          m = mock
+          m.expects(:to_sym).returns :TWO
+          assert wrapper.number?(m)
+        end
+        it 'returns false when its symbolized argument does not match the value' do
+          m = mock
+          m.expects(:to_sym).returns :ONE
+          refute wrapper.number?(m)
+        end
+        it 'raises an error when its symbolized argument is not a valid value for the enum' do
+          m = mock
+          m.expects(:to_sym).returns :NAN
+          assert_raises RangeError do
+            wrapper.number?(m)
+          end
+        end
       end
     end
   end
