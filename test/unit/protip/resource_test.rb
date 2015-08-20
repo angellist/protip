@@ -9,6 +9,10 @@ module Protip::ResourceTest # Namespace for internal constants
     let :pool do
       pool = Google::Protobuf::DescriptorPool.new
       pool.build do
+        add_enum 'number' do
+          value :ZERO, 0
+          value :ONE, 1
+        end
         add_message 'nested_message' do
           optional :number, :int64, 1
         end
@@ -17,6 +21,8 @@ module Protip::ResourceTest # Namespace for internal constants
           optional :string, :string, 2
           optional :string2, :string, 3
           optional :nested_message, :message, 4, 'nested_message'
+          optional :number, :enum, 5, 'number'
+          repeated :numbers, :enum, 6, 'number'
         end
 
         add_message 'resource_query' do
@@ -123,6 +129,29 @@ module Protip::ResourceTest # Namespace for internal constants
 
         assert_equal nested_message_class.new(number: 100), resource.message.nested_message, 'object was not converted'
         assert_equal 'intern', resource.nested_message, 'message was not converted'
+      end
+
+      describe '(query methods)' do
+        let(:resource) { resource_class.new }
+        it 'defines query methods for the scalar enums on its message' do
+          assert_respond_to resource, :number?
+          assert resource.number?(:ZERO)
+          refute resource.number?(:ONE)
+        end
+
+        it 'does not define query methods for repeated enums' do
+          refute_respond_to resource, :numbers?
+          assert_raises NoMethodError do
+            resource.numbers?(:ZERO)
+          end
+        end
+
+        it 'does not define query methods for non-enum fields' do
+          refute_respond_to resource, :inner?
+          assert_raises NoMethodError do
+            resource.inner?(:ZERO)
+          end
+        end
       end
     end
 

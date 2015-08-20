@@ -19,7 +19,7 @@ module Protip
       else
         message.class.descriptor.any? do |field|
           # getter, setter, and in the scalar enum case, query method
-          regex = /^#{field.name}[=#{allows_match?(field) ? '\\?' : ''}]?$/
+          regex = /^#{field.name}[=#{self.class.matchable?(field) ? '\\?' : ''}]?$/
           name.to_s =~ regex
         end
       end
@@ -29,7 +29,7 @@ module Protip
       if (name =~ /=$/ && field = message.class.descriptor.detect{|field| :"#{field.name}=" == name})
         raise ArgumentError unless args.length == 1
         set field, args[0]
-      elsif (name =~ /\?$/ && field = message.class.descriptor.detect{|field| allows_match?(field) && :"#{field.name}?" == name})
+      elsif (name =~ /\?$/ && field = message.class.descriptor.detect{|field| self.class.matchable?(field) && :"#{field.name}?" == name})
         raise ArgumentError unless args.length == 1
         matches? field, args[0]
       elsif (field = message.class.descriptor.detect{|field| field.name.to_sym == name})
@@ -138,6 +138,14 @@ module Protip
         converter == wrapper.converter
     end
 
+    class << self
+      # Semi-private check for whether a field should have an associated query method (e.g. +field_name?+).
+      # @return [Boolean] Whether the field should have an associated query method on wrappers.
+      def matchable?(field)
+        field.type == :enum && field.label != :repeated
+      end
+    end
+
     private
 
     def get(field)
@@ -199,10 +207,6 @@ module Protip
       raise RangeError.new("#{field} has no value #{value}") if nil == sym
       get(field) == sym
 
-    end
-
-    def allows_match?(field)
-      field.type == :enum && field.label != :repeated
     end
   end
 end
