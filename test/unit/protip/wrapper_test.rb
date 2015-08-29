@@ -163,11 +163,20 @@ module Protip::WrapperTest # namespace for internal constants
           converter.stubs(:convertible?).with(inner_message_class).returns(true)
         end
 
-        it 'converts Ruby values to protobuf messages' do
-          converter.stubs(:convertible?).with(inner_message_class).returns(true)
+        it 'converts scalar Ruby values to protobuf messages' do
           converter.expects(:to_message).once.with(45, inner_message_class).returns(inner_message_class.new(value: 43))
           wrapper.assign_attributes inner: 45
           assert_equal inner_message_class.new(value: 43), wrapped_message.inner
+        end
+
+        it 'converts repeated Ruby values to protobuf messages' do
+          invocation = 0
+          converter.expects(:to_message).twice.with do |value|
+            invocation += 1
+            value == invocation
+          end.returns(inner_message_class.new(value: 43), inner_message_class.new(value: 44))
+          wrapper.assign_attributes inners: [1, 2]
+          assert_equal [inner_message_class.new(value: 43), inner_message_class.new(value: 44)], wrapped_message.inners
         end
 
         it 'allows messages to be assigned directly' do
