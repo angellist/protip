@@ -14,7 +14,7 @@ Gem::Specification.new do |spec|
 
   spec.add_runtime_dependency 'activemodel', '>= 3.0.0', '< 5.0'
   spec.add_runtime_dependency 'activesupport', '>= 3.0.0', '< 5.0'
-  spec.add_runtime_dependency 'google-protobuf', '= 3.0.0.alpha.3'
+  spec.add_runtime_dependency 'google-protobuf', '= 3.0.0.alpha.4'
 
   spec.add_development_dependency 'minitest', '~> 5.0'
   spec.add_development_dependency 'mocha', '~> 1.1'
