@@ -108,16 +108,18 @@ module Protip
     # you're working with.
     module ExtraMethods
       def self.member(resource, action, method, message, response_type)
-        resource.class.client.request path: "#{resource.class.base_path}/#{resource.id}/#{action}",
+        response = resource.class.client.request path: "#{resource.class.base_path}/#{resource.id}/#{action}",
           method: method,
           message: message,
           response_type: response_type
+        nil == response ? nil : ::Protip::Wrapper.new(response, resource.class.converter)
       end
       def self.collection(resource_class, action, method, message, response_type)
-        resource_class.client.request path: "#{resource_class.base_path}/#{action}",
+        response = resource_class.client.request path: "#{resource_class.base_path}/#{action}",
           method: method,
           message: message,
           response_type: response_type
+        nil == response ? nil : ::Protip::Wrapper.new(response, resource_class.converter)
       end
     end
 

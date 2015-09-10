@@ -699,9 +699,9 @@ module Protip::ResourceTest # Namespace for internal constants
           target.action
         end
 
-        it 'returns the server response' do
+        it 'returns the wrapped server response' do
           client.stubs(:request).returns(response)
-          assert_equal response, target.action
+          assert_equal Protip::Wrapper.new(response, resource_class.converter), target.action
         end
       end
     end
