@@ -29,7 +29,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :value, :string, 1
   end
   add_message "google.protobuf.BytesValue" do
-    optional :value, :string, 1
+    optional :value, :bytes, 1
   end
 end
 
