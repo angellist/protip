@@ -19,7 +19,11 @@ describe Protip::StandardConverter do
   end
 
   let(:string_types) do
-    [Google::Protobuf::StringValue, Google::Protobuf::BytesValue]
+    [Google::Protobuf::StringValue]
+  end
+
+  let(:bytes_types) do
+    [Google::Protobuf::BytesValue]
   end
 
 
@@ -40,10 +44,11 @@ describe Protip::StandardConverter do
   describe '#to_object' do
     it 'converts wrapper types' do
       {
-        6      => integer_types,
-        5.5    => float_types,
-        false  => bool_types,
-        'asdf' => string_types,
+        6                                                 => integer_types,
+        5.5                                               => float_types,
+        false                                             => bool_types,
+        'asdf'                                            => string_types,
+        Base64.decode64("U2VuZCByZWluZm9yY2VtZW50cw==\n") => bytes_types,
       }.each do |value, message_types|
         message_types.each do |message_class|
           assert_equal value, converter.to_object(message_class.new value: value)
@@ -61,10 +66,11 @@ describe Protip::StandardConverter do
   describe '#to_message' do
     it 'converts wrapper types' do
       {
-        6      => integer_types,
-        5.5    => float_types,
-        false  => bool_types,
-        'asdf' => string_types,
+        6                                                 => integer_types,
+        5.5                                               => float_types,
+        false                                             => bool_types,
+        'asdf'                                            => string_types,
+        Base64.decode64("U2VuZCByZWluZm9yY2VtZW50cw==\n") => bytes_types,
       }.each do |value, message_types|
         message_types.each do |message_class|
           assert_equal message_class.new(value: value), converter.to_message(value, message_class)
