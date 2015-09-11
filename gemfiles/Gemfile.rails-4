@@ -4,3 +4,6 @@ gemspec path: '../'
 # Test against Rails 4 in the Travis build.
 gem 'activemodel',   '~> 4.0'
 gem 'activesupport', '~> 4.0'
+
+# Temporary, pending https://github.com/google/protobuf/issues/810
+gem 'google-protobuf', github: 'google/protobuf', ref: 'ffe9215140cc65c7622d64b23cb92a9d39744060'
