@@ -402,6 +402,14 @@ module Protip::WrapperTest # namespace for internal constants
         wrapper.number = 1
         assert_equal :ONE, wrapper.number
       end
+
+      it 'allows symbolizable values to be set for enum fields' do
+        m = mock
+        m.stubs(:to_sym).returns(:ONE)
+
+        wrapper.number = m
+        assert_equal :ONE, wrapper.number
+      end
     end
 
     describe '#matches?' do
