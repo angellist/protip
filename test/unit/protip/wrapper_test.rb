@@ -387,6 +387,21 @@ module Protip::WrapperTest # namespace for internal constants
           wrapper.number = :NAN
         end
       end
+
+      it 'allows strings to be set for enum fields' do
+        wrapper.number = 'ONE'
+        assert_equal :ONE, wrapper.number
+      end
+
+      it 'allows symbols to be set for enum fields' do
+        wrapper.number = :ONE
+        assert_equal :ONE, wrapper.number
+      end
+
+      it 'allows numbers to be set for enum fields' do
+        wrapper.number = 1
+        assert_equal :ONE, wrapper.number
+      end
     end
 
     describe '#matches?' do

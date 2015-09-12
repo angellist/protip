@@ -191,6 +191,8 @@ module Protip
         else
           raise ArgumentError.new "Cannot convert from Ruby object: \"#{field}\""
         end
+      elsif field.type == :enum
+        value.is_a?(String) ? value.to_sym : value
       else
         value
       end
