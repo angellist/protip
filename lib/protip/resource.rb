@@ -13,6 +13,9 @@ require 'active_model/naming'
 require 'active_model/translation'
 require 'active_model/errors'
 
+require 'active_model/attribute_methods' # ActiveModel::Dirty depends on this
+require 'active_model/dirty'
+
 require 'forwardable'
 
 require 'protip/error'
@@ -129,6 +132,8 @@ module Protip
     include ActiveModel::Validations
     include ActiveModel::Conversion
 
+    include ActiveModel::Dirty
+
     included do
       extend ActiveModel::Naming
       extend ActiveModel::Translation
@@ -136,7 +141,6 @@ module Protip
 
       def_delegator :@wrapper, :message
       def_delegator :@wrapper, :as_json
-      def_delegator :@wrapper, :assign_attributes
     end
     module ClassMethods
 
@@ -170,7 +174,18 @@ module Protip
           if ::Protip::Wrapper.matchable?(field)
             def_delegator :@wrapper, :"#{field.name}?"
           end
+
+          define_method "#{field.name}=" do |new_value|
+            old_wrapped_value = @wrapper.send(field.name)
+            new_wrapped_value = @wrapper.send("#{field.name}=", new_value)
+
+            # needed for ActiveModel::Dirty
+            send("#{field.name}_will_change!") if new_wrapped_value != old_wrapped_value
+          end
         end
+
+        # needed for ActiveModel::Dirty
+        define_attribute_methods @message.descriptor.map(&:name)
 
         # Validate arguments
         actions.map!{|action| action.to_sym}
@@ -258,6 +273,11 @@ module Protip
       super()
     end
 
+    def assign_attributes(attributes)
+      # Resource needs to call its own setters so that fields get marked as dirty
+      attributes.each { |field_name, value| send("#{field_name}=", value) }
+    end
+
     def message=(message)
       @wrapper = Protip::Wrapper.new(message, self.class.converter)
     end
@@ -271,6 +291,7 @@ module Protip
         else
           create!
         end
+        changes_applied
       rescue Protip::UnprocessableEntityError => error
         success = false
         error.errors.messages.each do |message|
@@ -297,6 +318,14 @@ module Protip
 
     def errors
       @errors ||= ActiveModel::Errors.new(self)
+    end
+
+    private
+
+    # needed for ActiveModel::Dirty
+    def changes_applied
+      @previously_changed = changes
+      @changed_attributes.clear
     end
   end
 end

@@ -28,7 +28,8 @@ module Protip
     def method_missing(name, *args)
       if (name =~ /=$/ && field = message.class.descriptor.detect{|field| :"#{field.name}=" == name})
         raise ArgumentError unless args.length == 1
-        set field, args[0]
+        attributes = {}.tap { |hash| hash[field.name] = args[0] }
+        assign_attributes attributes
       elsif (name =~ /\?$/ && field = message.class.descriptor.detect{|field| self.class.matchable?(field) && :"#{field.name}?" == name})
         raise ArgumentError unless args.length == 1
         matches? field, args[0]

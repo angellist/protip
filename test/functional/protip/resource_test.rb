@@ -1,6 +1,7 @@
 require 'test_helper'
 
 require 'protip'
+require 'google/protobuf/wrappers'
 
 describe 'Protip::Resource (functional)' do
 

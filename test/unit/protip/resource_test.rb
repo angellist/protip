@@ -495,6 +495,14 @@ module Protip::ResourceTest # Namespace for internal constants
           resource.save
           assert_equal response, resource.message
         end
+
+        it 'marks changes as applied' do
+          client.stubs(:request).returns(response)
+          resource = resource_class.new(string: 'time')
+          assert resource.string_changed?, 'string should initially be changed'
+          assert resource.save
+          assert !resource.string_changed?, 'string should no longer be changed after save'
+        end
       end
 
       describe 'for an existing record' do
@@ -527,6 +535,14 @@ module Protip::ResourceTest # Namespace for internal constants
           resource = resource_class.new id: 5
           resource.save
           assert_equal response, resource.message
+        end
+
+        it 'marks changes as applied' do
+          client.stubs(:request).returns(response)
+          resource = resource_class.new id: 5, string: 'new_string'
+          assert resource.string_changed?, 'string should initially be changed'
+          assert resource.save
+          assert !resource.string_changed?, 'string should no longer be changed after save'
         end
       end
 
@@ -566,6 +582,13 @@ module Protip::ResourceTest # Namespace for internal constants
 
         it 'returns false' do
           refute @resource.save, 'save returned true'
+        end
+
+        it 'does not mark changes as applied' do
+          @resource.string = 'new_string'
+          assert @resource.string_changed?, 'string should initially be changed'
+          refute @resource.save
+          assert @resource.string_changed?, 'string should still be changed after unsuccessful save'
         end
       end
     end
