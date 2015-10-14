@@ -99,9 +99,11 @@ module Protip
         if field.type == :message && !converter.convertible?(field.subtype.msgclass)
           if value.is_a?(field.subtype.msgclass) # If a message, set it directly
             set(field, value)
-          else # If a hash, pass it through to the nested message
+          elsif value.is_a?(Hash) # If a hash, pass it through to the nested message
             wrapper = get(field) || build(field.name) # Create the field if it doesn't already exist
             wrapper.assign_attributes value
+          else # If it's a simple type, set the value directly
+            set(field, value)
           end
         # Otherwise, if the field is a convertible message or a simple type, we set the value directly
         else
