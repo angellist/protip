@@ -274,9 +274,9 @@ module Protip
     end
 
     def assign_attributes(attributes)
-      # Resource needs to call its own setters so that fields get marked as dirty
+      # the resource needs to call its own setters so that fields get marked as dirty
       attributes.each { |field_name, value| send("#{field_name}=", value) }
-      nil # Return nil to match ActiveRecord behavior
+      nil # return nil to match ActiveRecord behavior
     end
 
     def message=(message)
