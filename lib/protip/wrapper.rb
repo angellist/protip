@@ -30,6 +30,7 @@ module Protip
         raise ArgumentError unless args.length == 1
         attributes = {}.tap { |hash| hash[field.name] = args[0] }
         assign_attributes attributes
+        args[0] # return the input value (to match ActiveRecord behavior)
       elsif (name =~ /\?$/ && field = message.class.descriptor.detect{|field| self.class.matchable?(field) && :"#{field.name}?" == name})
         raise ArgumentError unless args.length == 1
         matches? field, args[0]

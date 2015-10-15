@@ -170,14 +170,14 @@ module Protip
         @message = message
         @message.descriptor.each do |field|
           def_delegator :@wrapper, :"#{field.name}"
-          def_delegator :@wrapper, :"#{field.name}="
           if ::Protip::Wrapper.matchable?(field)
             def_delegator :@wrapper, :"#{field.name}?"
           end
 
           define_method "#{field.name}=" do |new_value|
             old_wrapped_value = @wrapper.send(field.name)
-            new_wrapped_value = @wrapper.send("#{field.name}=", new_value)
+            @wrapper.send("#{field.name}=", new_value)
+            new_wrapped_value = @wrapper.send(field.name)
 
             # needed for ActiveModel::Dirty
             send("#{field.name}_will_change!") if new_wrapped_value != old_wrapped_value
@@ -276,6 +276,7 @@ module Protip
     def assign_attributes(attributes)
       # Resource needs to call its own setters so that fields get marked as dirty
       attributes.each { |field_name, value| send("#{field_name}=", value) }
+      nil # Return nil to match ActiveRecord behavior
     end
 
     def message=(message)
