@@ -112,7 +112,7 @@ module Protip::ResourceTest # Namespace for internal constants
       end
 
       it 'checks with the converter when setting message types' do
-        converter.stubs(:convertible?).with(nested_message_class).returns(false)
+        converter.expects(:convertible?).at_least_once.with(nested_message_class).returns(false)
         resource = resource_class.new
         assert_raises(ArgumentError) do
           resource.nested_message = 5
@@ -120,9 +120,9 @@ module Protip::ResourceTest # Namespace for internal constants
       end
 
       it 'converts message types to and from their Ruby values when the converter allows' do
-        converter.stubs(:convertible?).with(nested_message_class).returns(true)
+        converter.expects(:convertible?).at_least_once.with(nested_message_class).returns(true)
         converter.expects(:to_message).once.with(6, nested_message_class).returns(nested_message_class.new number: 100)
-        converter.stubs(:to_object).with(nested_message_class.new number: 100).returns 'intern'
+        converter.expects(:to_object).at_least_once.with(nested_message_class.new number: 100).returns 'intern'
 
         resource = resource_class.new
         resource.nested_message = 6

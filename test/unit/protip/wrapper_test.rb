@@ -351,7 +351,7 @@ module Protip::WrapperTest # namespace for internal constants
       end
 
       it 'converts convertible messages' do
-        converter.stubs(:convertible?).with(inner_message_class).returns(true)
+        converter.expects(:convertible?).at_least_once.with(inner_message_class).returns(true)
         converter.expects(:to_message).with(40, inner_message_class).returns(inner_message_class.new(value: 30))
 
         wrapper.inner = 40
@@ -359,7 +359,7 @@ module Protip::WrapperTest # namespace for internal constants
       end
 
       it 'removes message fields when assigning nil' do
-        converter.stubs(:convertible?).with(inner_message_class).returns(false)
+        converter.expects(:convertible?).at_least_once.with(inner_message_class).returns(false)
         converter.expects(:to_message).never
 
         wrapper.inner = nil
@@ -367,7 +367,7 @@ module Protip::WrapperTest # namespace for internal constants
       end
 
       it 'raises an error when setting inconvertible messages' do
-        converter.stubs(:convertible?).with(inner_message_class).returns(false)
+        converter.expects(:convertible?).at_least_once.with(inner_message_class).returns(false)
         converter.expects(:to_message).never
         assert_raises ArgumentError do
           wrapper.inner = 'cannot convert me'
