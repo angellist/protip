@@ -216,6 +216,13 @@ module Protip::WrapperTest # namespace for internal constants
           wrapper.assign_attributes inner: {value: 50, note: 'noted'}
         end
 
+        it "sets messages to nil when they're assigned nil" do
+          wrapped_message.inner = inner_message_class.new(value: 60)
+          assert wrapped_message.inner
+          wrapper.assign_attributes inner: nil
+          assert_nil wrapped_message.inner
+        end
+
         it 'allows messages to be assigned directly' do
           message = inner_message_class.new
           wrapper.assign_attributes inner: message
@@ -341,7 +348,7 @@ module Protip::WrapperTest # namespace for internal constants
       end
     end
 
-    describe '#set' do
+    describe 'attribute writer' do # generated via method_missing?
       it 'does not convert simple fields' do
         converter.expects(:convertible?).never
         converter.expects(:to_message).never
@@ -411,6 +418,11 @@ module Protip::WrapperTest # namespace for internal constants
 
         wrapper.number = m
         assert_equal :ONE, wrapper.number
+      end
+
+      it 'returns the input value' do
+        input_value = 'str'
+        assert_equal input_value, wrapper.send(:string=, input_value)
       end
     end
 
