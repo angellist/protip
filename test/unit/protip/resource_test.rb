@@ -112,7 +112,7 @@ module Protip::ResourceTest # Namespace for internal constants
       end
 
       it 'checks with the converter when setting message types' do
-        converter.expects(:convertible?).once.with(nested_message_class).returns(false)
+        converter.expects(:convertible?).at_least_once.with(nested_message_class).returns(false)
         resource = resource_class.new
         assert_raises(ArgumentError) do
           resource.nested_message = 5
@@ -120,9 +120,9 @@ module Protip::ResourceTest # Namespace for internal constants
       end
 
       it 'converts message types to and from their Ruby values when the converter allows' do
-        converter.expects(:convertible?).times(2).with(nested_message_class).returns(true)
+        converter.expects(:convertible?).at_least_once.with(nested_message_class).returns(true)
         converter.expects(:to_message).once.with(6, nested_message_class).returns(nested_message_class.new number: 100)
-        converter.expects(:to_object).once.with(nested_message_class.new number: 100).returns 'intern'
+        converter.expects(:to_object).at_least_once.with(nested_message_class.new number: 100).returns 'intern'
 
         resource = resource_class.new
         resource.nested_message = 6
@@ -434,12 +434,40 @@ module Protip::ResourceTest # Namespace for internal constants
           attrs = {id: 2}
           assert_equal resource_message_class.new(attrs), resource_class.new(attrs).message
         end
+      end
+    end
 
-        it 'delegates to #assign_attributes on its wrapper object when a hash is given' do
-          attrs = {id: 3}
-          Protip::Wrapper.any_instance.expects(:assign_attributes).once.with({id: 3})
-          resource_class.new(attrs)
+    describe 'attribute writer' do
+      before do
+        resource_class.class_exec(resource_message_class) do |resource_message_class|
+          resource actions: [], message: resource_message_class
         end
+      end
+
+      it 'delegates writes to the wrapper object' do
+        resource = resource_class.new
+        test_string = 'new'
+        Protip::Wrapper.any_instance.expects(:string=).with(test_string)
+        resource.string = test_string
+      end
+
+      it 'marks the resource and attribute as changed if the value is changed' do
+        resource = resource_class.new string: 'original'
+        resource.string = 'new'
+        assert resource.changed?, 'resource should be marked as changed'
+        assert resource.string_changed?, 'string field should be marked as changed'
+      end
+
+      it 'does not mark the resource and attribute as changed if the value is not changed' do
+        resource = resource_class.new string: 'original'
+        resource.send :changes_applied # clear the changes
+        # establish that the changes were cleared
+        assert !resource.changed?, 'resource should be not marked as changed'
+        assert !resource.string_changed?, 'string field should not be marked as changed'
+
+        resource.string = 'original'
+        assert !resource.changed?, 'resource should be not marked as changed'
+        assert !resource.string_changed?, 'string field should not be marked as changed'
       end
     end
 
@@ -449,11 +477,17 @@ module Protip::ResourceTest # Namespace for internal constants
           resource actions: [], message: resource_message_class
         end
       end
-      it 'delegates to #assign_attributes on its wrapper object' do
-        resource = resource_class.new
 
-        Protip::Wrapper.any_instance.expects(:assign_attributes).once.with(string: 'whodunnit').returns('boo')
-        assert_equal 'boo', resource.assign_attributes(string: 'whodunnit')
+      it 'calls the attribute writer for each attribute' do
+        resource = resource_class.new
+        test_string = 'whodunnit'
+        resource.expects(:string=).with(test_string)
+        resource.assign_attributes(string: test_string)
+      end
+
+      it 'returns nil' do
+        resource = resource_class.new
+        assert_nil resource.assign_attributes(string: 'asdf')
       end
     end
 
@@ -495,6 +529,14 @@ module Protip::ResourceTest # Namespace for internal constants
           resource.save
           assert_equal response, resource.message
         end
+
+        it 'marks changes as applied' do
+          client.stubs(:request).returns(response)
+          resource = resource_class.new(string: 'time')
+          assert resource.string_changed?, 'string should initially be changed'
+          assert resource.save
+          assert !resource.string_changed?, 'string should no longer be changed after save'
+        end
       end
 
       describe 'for an existing record' do
@@ -527,6 +569,14 @@ module Protip::ResourceTest # Namespace for internal constants
           resource = resource_class.new id: 5
           resource.save
           assert_equal response, resource.message
+        end
+
+        it 'marks changes as applied' do
+          client.stubs(:request).returns(response)
+          resource = resource_class.new id: 5, string: 'new_string'
+          assert resource.string_changed?, 'string should initially be changed'
+          assert resource.save
+          assert !resource.string_changed?, 'string should no longer be changed after save'
         end
       end
 
@@ -566,6 +616,13 @@ module Protip::ResourceTest # Namespace for internal constants
 
         it 'returns false' do
           refute @resource.save, 'save returned true'
+        end
+
+        it 'does not mark changes as applied' do
+          @resource.string = 'new_string'
+          assert @resource.string_changed?, 'string should initially be changed'
+          refute @resource.save
+          assert @resource.string_changed?, 'string should still be changed after unsuccessful save'
         end
       end
     end

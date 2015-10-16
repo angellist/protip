@@ -28,7 +28,9 @@ module Protip
     def method_missing(name, *args)
       if (name =~ /=$/ && field = message.class.descriptor.detect{|field| :"#{field.name}=" == name})
         raise ArgumentError unless args.length == 1
-        set field, args[0]
+        attributes = {}.tap { |hash| hash[field.name] = args[0] }
+        assign_attributes attributes
+        args[0] # return the input value (to match ActiveRecord behavior)
       elsif (name =~ /\?$/ && field = message.class.descriptor.detect{|field| self.class.matchable?(field) && :"#{field.name}?" == name})
         raise ArgumentError unless args.length == 1
         matches? field, args[0]
@@ -98,9 +100,11 @@ module Protip
         if field.type == :message && !converter.convertible?(field.subtype.msgclass)
           if value.is_a?(field.subtype.msgclass) # If a message, set it directly
             set(field, value)
-          else # If a hash, pass it through to the nested message
+          elsif value.is_a?(Hash) # If a hash, pass it through to the nested message
             wrapper = get(field) || build(field.name) # Create the field if it doesn't already exist
             wrapper.assign_attributes value
+          else # If value is a simple type (e.g. nil), set the value directly
+            set(field, value)
           end
         # Otherwise, if the field is a convertible message or a simple type, we set the value directly
         else
