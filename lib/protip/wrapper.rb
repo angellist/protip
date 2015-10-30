@@ -144,7 +144,9 @@ module Protip
       def matchable?(field)
         return false if field.label == :repeated
 
-        field.type == :enum || field.type == :bool
+        field.type == :enum ||
+            field.type == :bool ||
+            field.type == :message && (field.subtype.name == "google.protobuf.BoolValue")
       end
     end
 
