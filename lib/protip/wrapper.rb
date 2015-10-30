@@ -142,7 +142,9 @@ module Protip
       # Semi-private check for whether a field should have an associated query method (e.g. +field_name?+).
       # @return [Boolean] Whether the field should have an associated query method on wrappers.
       def matchable?(field)
-        field.type == :enum && field.label != :repeated
+        return false if field.label == :repeated
+
+        field.type == :enum || field.type == :bool
       end
     end
 

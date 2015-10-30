@@ -35,6 +35,9 @@ module Protip::WrapperTest # namespace for internal constants
 
           optional :number, :enum, 6, 'number'
           repeated :numbers, :enum, 7, 'number'
+
+          optional :boolean, :bool, 8
+          repeated :booleans, :bool, 9
         end
       end
       pool
@@ -65,13 +68,15 @@ module Protip::WrapperTest # namespace for internal constants
         assert_respond_to wrapper, :inner
         assert_respond_to wrapper, :inner_blank
       end
-      it 'adds queries for scalar enum fields' do
-        assert_respond_to wrapper, :number?
+      it 'adds queries for scalar matchable fields' do
+        assert_respond_to wrapper, :number?, 'enum field should respond to query'
+        assert_respond_to wrapper, :boolean?, 'boolean field should respond to query'
       end
-      it 'does not add queries for repeated enum fields' do
-        refute_respond_to wrapper, :numbers?
+      it 'does not add queries for repeated fields' do
+        refute_respond_to wrapper, :numbers?, 'enum field should not respond to query'
+        refute_respond_to wrapper, :booleans?, 'boolean field should respond to query'
       end
-      it 'does not add queries for non-enum fields' do
+      it 'does not add queries for non-matchable fields' do
         refute_respond_to wrapper, :inner?
       end
       it 'responds to standard defined methods' do
@@ -293,7 +298,7 @@ module Protip::WrapperTest # namespace for internal constants
         end
 
         it 'contains keys for all fields of the parent message' do
-          assert_equal %i(string strings inner inners inner_blank number numbers).sort, wrapper.to_h.keys.sort
+          assert_equal %i(string strings inner inners inner_blank number numbers boolean booleans).sort, wrapper.to_h.keys.sort
         end
         it 'assigns nil for missing nested messages' do
           hash = wrapper.to_h
