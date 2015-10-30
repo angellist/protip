@@ -30,8 +30,15 @@ module Protip
         raise ArgumentError unless args.length == 1
         set field, args[0]
       elsif (name =~ /\?$/ && field = message.class.descriptor.detect{|field| self.class.matchable?(field) && :"#{field.name}?" == name})
-        raise ArgumentError unless args.length == 1
-        matches? field, args[0]
+        if args.length == 1
+          # this is an enum query, e.g. `state?(:CREATED)`
+          matches? field, args[0]
+        elsif args.length == 0
+          # this is a boolean query, e.g. `approved?`
+          get field
+        else
+          raise ArgumentError
+        end
       elsif (field = message.class.descriptor.detect{|field| field.name.to_sym == name})
         raise ArgumentError unless args.length == 0
         get field
