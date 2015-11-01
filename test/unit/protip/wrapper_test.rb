@@ -23,6 +23,9 @@ module Protip::WrapperTest # namespace for internal constants
           optional :value, :int64, 1
           optional :note, :string, 2
         end
+        add_message "google.protobuf.BoolValue" do
+          optional :value, :bool, 1
+        end
 
         add_message 'message' do
           optional :inner, :message, 1, 'inner_message'
@@ -35,6 +38,12 @@ module Protip::WrapperTest # namespace for internal constants
 
           optional :number, :enum, 6, 'number'
           repeated :numbers, :enum, 7, 'number'
+
+          optional :boolean, :bool, 8
+          repeated :booleans, :bool, 9
+
+          optional :google_bool_value, :message, 10, "google.protobuf.BoolValue"
+          repeated :google_bool_values, :message, 11, "google.protobuf.BoolValue"
         end
       end
       pool
@@ -65,13 +74,17 @@ module Protip::WrapperTest # namespace for internal constants
         assert_respond_to wrapper, :inner
         assert_respond_to wrapper, :inner_blank
       end
-      it 'adds queries for scalar enum fields' do
-        assert_respond_to wrapper, :number?
+      it 'adds queries for scalar matchable fields' do
+        assert_respond_to wrapper, :number?, 'enum field should respond to query'
+        assert_respond_to wrapper, :boolean?, 'bool field should respond to query'
+        assert_respond_to wrapper, :google_bool_value?, 'google.protobuf.BoolValue field should respond to query'
       end
-      it 'does not add queries for repeated enum fields' do
-        refute_respond_to wrapper, :numbers?
+      it 'does not add queries for repeated fields' do
+        refute_respond_to wrapper, :numbers?, 'repeated enum field should not respond to query'
+        refute_respond_to wrapper, :booleans?, 'repeated bool field should not respond to query'
+        refute_respond_to wrapper, :google_bool_values?, 'repeated google.protobuf.BoolValue field should not respond to query'
       end
-      it 'does not add queries for non-enum fields' do
+      it 'does not add queries for non-matchable fields' do
         refute_respond_to wrapper, :inner?
       end
       it 'responds to standard defined methods' do
@@ -300,7 +313,7 @@ module Protip::WrapperTest # namespace for internal constants
         end
 
         it 'contains keys for all fields of the parent message' do
-          assert_equal %i(string strings inner inners inner_blank number numbers).sort, wrapper.to_h.keys.sort
+          assert_equal %i(string strings inner inners inner_blank number numbers boolean booleans google_bool_value google_bool_values).sort, wrapper.to_h.keys.sort
         end
         it 'assigns nil for missing nested messages' do
           hash = wrapper.to_h

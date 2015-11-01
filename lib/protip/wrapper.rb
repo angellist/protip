@@ -32,8 +32,15 @@ module Protip
         assign_attributes attributes
         args[0] # return the input value (to match ActiveRecord behavior)
       elsif (name =~ /\?$/ && field = message.class.descriptor.detect{|field| self.class.matchable?(field) && :"#{field.name}?" == name})
-        raise ArgumentError unless args.length == 1
-        matches? field, args[0]
+        if args.length == 1
+          # this is an enum query, e.g. `state?(:CREATED)`
+          matches? field, args[0]
+        elsif args.length == 0
+          # this is a boolean query, e.g. `approved?`
+          get field
+        else
+          raise ArgumentError
+        end
       elsif (field = message.class.descriptor.detect{|field| field.name.to_sym == name})
         raise ArgumentError unless args.length == 0
         get field
@@ -146,7 +153,11 @@ module Protip
       # Semi-private check for whether a field should have an associated query method (e.g. +field_name?+).
       # @return [Boolean] Whether the field should have an associated query method on wrappers.
       def matchable?(field)
-        field.type == :enum && field.label != :repeated
+        return false if field.label == :repeated
+
+        field.type == :enum ||
+            field.type == :bool ||
+            field.type == :message && (field.subtype.name == "google.protobuf.BoolValue")
       end
     end
 
