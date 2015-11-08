@@ -7,10 +7,13 @@ module Protip
   # - mass assignment of attributes
   # - standardized creation of nested messages that can't be converted to/from Ruby objects
   class Wrapper
-    attr_reader :message, :converter
-    def initialize(message, converter)
+
+    attr_reader :message, :converter, :nested_resources
+
+    def initialize(message, converter, nested_resources={})
       @message = message
       @converter = converter
+      @nested_resources = nested_resources
     end
 
     def respond_to?(name)
@@ -172,10 +175,14 @@ module Protip
     # Helper for getting values - converts the value for the given field to one that we can return to the user
     def to_ruby_value(field, value)
       if field.type == :message
+        field_name_sym = field.name.to_sym
         if nil == value
           nil
         elsif converter.convertible?(field.subtype.msgclass)
           converter.to_object value
+        elsif nested_resources.has_key?(field_name_sym)
+          resource_klass = nested_resources[field_name_sym]
+          resource_klass.new value
         else
           self.class.new value, converter
         end
@@ -201,6 +208,8 @@ module Protip
           value
         elsif converter.convertible?(field.subtype.msgclass)
           converter.to_message value, field.subtype.msgclass
+        elsif nested_resources.has_key?(field.name.to_sym)
+          value.message
         else
           raise ArgumentError.new "Cannot convert from Ruby object: \"#{field}\""
         end
