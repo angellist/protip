@@ -17,8 +17,11 @@ module Protip
       if super
         true
       else
+        # Responds to calls to oneof groups by name
+        return true if message.class.descriptor.lookup_oneof(name.to_s)
+
+        # Responds to field getters, setters, and in the scalar enum case, query methods
         message.class.descriptor.any? do |field|
-          # getter, setter, and in the scalar enum case, query method
           regex = /^#{field.name}[=#{self.class.matchable?(field) ? '\\?' : ''}]?$/
           name.to_s =~ regex
         end
@@ -26,12 +29,13 @@ module Protip
     end
 
     def method_missing(name, *args)
-      if (name =~ /=$/ && field = message.class.descriptor.detect{|field| :"#{field.name}=" == name})
+      descriptor = message.class.descriptor
+      if (name =~ /=$/ && field = descriptor.detect{|field| :"#{field.name}=" == name})
         raise ArgumentError unless args.length == 1
         attributes = {}.tap { |hash| hash[field.name] = args[0] }
         assign_attributes attributes
         args[0] # return the input value (to match ActiveRecord behavior)
-      elsif (name =~ /\?$/ && field = message.class.descriptor.detect{|field| self.class.matchable?(field) && :"#{field.name}?" == name})
+      elsif (name =~ /\?$/ && field = descriptor.detect{|field| self.class.matchable?(field) && :"#{field.name}?" == name})
         if args.length == 1
           # this is an enum query, e.g. `state?(:CREATED)`
           matches? field, args[0]
@@ -41,9 +45,16 @@ module Protip
         else
           raise ArgumentError
         end
-      elsif (field = message.class.descriptor.detect{|field| field.name.to_sym == name})
+      elsif (field = descriptor.detect{|field| field.name.to_sym == name})
         raise ArgumentError unless args.length == 0
         get field
+      # For calls to a oneof group, return the active oneof field, or nil if there isn't one
+      elsif (oneof_descriptor = descriptor.lookup_oneof(name.to_s))
+        oneof_field_name = message.send(oneof_descriptor.name)
+        return if oneof_field_name.nil?
+        oneof_field_name = oneof_field_name.to_s
+        oneof_field = oneof_descriptor.detect {|field| field.name == oneof_field_name}
+        oneof_field ? get(oneof_field) : nil
       else
         super
       end

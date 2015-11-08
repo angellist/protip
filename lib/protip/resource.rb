@@ -184,6 +184,11 @@ module Protip
           end
         end
 
+        # Allow calls to oneof groups to get the set oneof field
+        @message.descriptor.each_oneof do |oneof_field|
+          def_delegator :@wrapper, :"#{oneof_field.name}"
+        end
+
         # needed for ActiveModel::Dirty
         define_attribute_methods @message.descriptor.map(&:name)
 

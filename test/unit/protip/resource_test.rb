@@ -7,6 +7,8 @@ require 'protip/resource'
 module Protip::ResourceTest # Namespace for internal constants
   describe Protip::Resource do
     let :pool do
+      # See https://github.com/google/protobuf/blob/master/ruby/tests/generated_code.rb for
+      # examples of field types you can add here
       pool = Google::Protobuf::DescriptorPool.new
       pool.build do
         add_enum 'number' do
@@ -30,6 +32,11 @@ module Protip::ResourceTest # Namespace for internal constants
           repeated :booleans, :bool, 9
           optional :google_bool_value, :message, 10, "google.protobuf.BoolValue"
           repeated :google_bool_values, :message, 11, "google.protobuf.BoolValue"
+
+          oneof :oneof_group do
+            optional :oneof_string1, :string, 12
+            optional :oneof_string2, :string, 13
+          end
         end
 
         add_message 'resource_query' do
@@ -103,6 +110,30 @@ module Protip::ResourceTest # Namespace for internal constants
           assert_respond_to resource, method
         end
         refute_respond_to resource, :foo
+      end
+
+      it 'defines accessors for oneof groups on its message' do
+        resource = resource_class.new
+        group_name = 'oneof_group'
+        assert resource.message.class.descriptor.lookup_oneof(group_name)
+        assert_respond_to resource, group_name
+      end
+
+      it 'returns nil if the oneof group accessor called when the underlying fields are not set' do
+        resource = resource_class.new
+        assert_nil resource.oneof_group
+      end
+
+      it 'returns the active oneof field when a oneof group accessor is called' do
+        resource = resource_class.new
+        foo, bar = 'foo', 'bar'
+        resource.oneof_string1 = foo
+        assert_equal resource.oneof_string1, resource.oneof_group
+        resource.oneof_string2 = bar
+        assert_equal resource.oneof_string2, resource.oneof_group
+        resource.oneof_string2 = bar
+        resource.oneof_string1 = foo
+        assert_equal resource.oneof_string1, resource.oneof_group
       end
 
       it 'sets fields on the underlying message when simple setters are called' do
