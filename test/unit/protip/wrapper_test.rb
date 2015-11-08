@@ -44,6 +44,11 @@ module Protip::WrapperTest # namespace for internal constants
 
           optional :google_bool_value, :message, 10, "google.protobuf.BoolValue"
           repeated :google_bool_values, :message, 11, "google.protobuf.BoolValue"
+
+          oneof :oneof_group do
+            optional :oneof_string1, :string, 12
+            optional :oneof_string2, :string, 13
+          end
         end
       end
       pool
@@ -73,6 +78,9 @@ module Protip::WrapperTest # namespace for internal constants
         assert_respond_to wrapper, :string
         assert_respond_to wrapper, :inner
         assert_respond_to wrapper, :inner_blank
+      end
+      it 'adds accessors for oneof groups' do
+        assert_respond_to wrapper, :oneof_group
       end
       it 'adds queries for scalar matchable fields' do
         assert_respond_to wrapper, :number?, 'enum field should respond to query'
@@ -313,7 +321,9 @@ module Protip::WrapperTest # namespace for internal constants
         end
 
         it 'contains keys for all fields of the parent message' do
-          assert_equal %i(string strings inner inners inner_blank number numbers boolean booleans google_bool_value google_bool_values).sort, wrapper.to_h.keys.sort
+          keys = %i(string strings inner inners inner_blank number numbers boolean booleans
+                    google_bool_value google_bool_values oneof_string1 oneof_string2)
+          assert_equal keys.sort, wrapper.to_h.keys.sort
         end
         it 'assigns nil for missing nested messages' do
           hash = wrapper.to_h
