@@ -30,34 +30,21 @@ module Protip
 
     def method_missing(name, *args)
       descriptor = message.class.descriptor
-      if (name =~ /=$/ && field = descriptor.detect{|field| :"#{field.name}=" == name})
-        raise ArgumentError unless args.length == 1
-        attributes = {}.tap { |hash| hash[field.name] = args[0] }
-        assign_attributes attributes
-        args[0] # return the input value (to match ActiveRecord behavior)
-      elsif (name =~ /\?$/ && field = descriptor.detect{|field| self.class.matchable?(field) && :"#{field.name}?" == name})
-        if args.length == 1
-          # this is an enum query, e.g. `state?(:CREATED)`
-          matches? field, args[0]
-        elsif args.length == 0
-          # this is a boolean query, e.g. `approved?`
-          get field
-        else
-          raise ArgumentError
-        end
-      elsif (field = descriptor.detect{|field| field.name.to_sym == name})
-        raise ArgumentError unless args.length == 0
-        get field
+
+      is_setter_method = name =~ /=$/
+      return method_missing_setter(name, *args) if is_setter_method
+
+      is_query_method = name =~ /\?$/
+      return method_missing_query(name, *args) if is_query_method
+
+      field = descriptor.detect{|field| field.name.to_sym == name}
+      return method_missing_field(field, *args) if field
+
+      oneof_descriptor = descriptor.lookup_oneof(name.to_s)
       # For calls to a oneof group, return the active oneof field, or nil if there isn't one
-      elsif (oneof_descriptor = descriptor.lookup_oneof(name.to_s))
-        oneof_field_name = message.send(oneof_descriptor.name)
-        return if oneof_field_name.nil?
-        oneof_field_name = oneof_field_name.to_s
-        oneof_field = oneof_descriptor.detect {|field| field.name == oneof_field_name}
-        oneof_field ? get(oneof_field) : nil
-      else
-        super
-      end
+      return method_missing_oneof(oneof_descriptor) if oneof_descriptor
+
+      super
     end
 
     # Create a nested field on our message. For example, given the following definitions:
@@ -235,6 +222,46 @@ module Protip
       raise RangeError.new("#{field} has no value #{value}") if nil == sym
       get(field) == sym
 
+    end
+
+    def method_missing_oneof(oneof_descriptor)
+      oneof_field_name = message.send(oneof_descriptor.name)
+      return if oneof_field_name.nil?
+      oneof_field_name = oneof_field_name.to_s
+      oneof_field = oneof_descriptor.detect {|field| field.name == oneof_field_name}
+      oneof_field ? get(oneof_field) : nil
+    end
+
+    def method_missing_field(field, *args)
+      if field
+        raise ArgumentError unless args.length == 0
+        get(field)
+      end
+    end
+
+    def method_missing_query(name, *args)
+      field = message.class.descriptor.detect do |field|
+        self.class.matchable?(field) && :"#{field.name}?" == name
+      end
+      if args.length == 1
+        # this is an enum query, e.g. `state?(:CREATED)`
+        matches? field, args[0]
+      elsif args.length == 0
+        # this is a boolean query, e.g. `approved?`
+        get field
+      else
+        raise ArgumentError
+      end
+    end
+
+    def method_missing_setter(name, *args)
+      field = message.class.descriptor.detect{|field| :"#{field.name}=" == name}
+      if field
+        raise ArgumentError unless args.length == 1
+        attributes = {}.tap { |hash| hash[field.name] = args[0] }
+        assign_attributes attributes
+        return args[0] # return the input value (to match ActiveRecord behavior)
+      end
     end
   end
 end

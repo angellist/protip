@@ -24,111 +24,18 @@ require 'protip/wrapper'
 
 require 'protip/messages/array'
 
+require 'protip/resource/creatable'
+require 'protip/resource/updateable'
+require 'protip/resource/destroyable'
+require 'protip/resource/extra_methods'
+require 'protip/resource/search_methods'
+
 module Protip
   module Resource
-
-    # Internal handlers for index/show actions. Never use these directly; instead, use `.all` and
-    # `.find` on the resource you're working with, since those methods will adjust their
-    # signatures to correctly parse a set of query parameters if supported.
-    module SearchMethods
-      # Fetch a list from the server at the collection's base endpoint. Expects the server response
-      # to be an array containing encoded messages that can be used to instantiate our resource.
-      #
-      # @param resource_class [Class] The resource type that we're fetching.
-      # @param query [::Protobuf::Message|NilClass] An optional query to send along with the request.
-      # @return [Array] The array of resources (each is an instance of the resource class we were
-      #   initialized with).
-      def self.index(resource_class, query)
-        response = resource_class.client.request path: resource_class.base_path,
-          method: Net::HTTP::Get,
-          message: query,
-          response_type: Protip::Messages::Array
-        response.messages.map do |message|
-          resource_class.new resource_class.message.decode(message)
-        end
-      end
-
-      # Fetch a single resource from the server.
-      #
-      # @param resource_class [Class] The resource type that we're fetching.
-      # @param id [String] The ID to be used in the URL to fetch the resource.
-      # @param query [::Protobuf::Message|NilClass] An optional query to send along with the request.
-      # @return [Protip::Resource] An instance of our resource class, created from the server
-      #   response.
-      def self.show(resource_class, id, query)
-        response = resource_class.client.request path: "#{resource_class.base_path}/#{id}",
-          method: Net::HTTP::Get,
-          message: query,
-          response_type: resource_class.message
-        resource_class.new response
-      end
-    end
-
-    # Mixin for a resource that has an active `:create` action. Should be treated as private,
-    # and will be included automatically when appropriate.
-    module Creatable
-      private
-      # POST the resource to the server and update our internal message. Private, since
-      # we should generally do this through the `save` method.
-      def create!
-        raise RuntimeError.new("Can't re-create a persisted object") if persisted?
-        self.message = self.class.client.request path: self.class.base_path,
-          method: Net::HTTP::Post,
-          message: message,
-          response_type: self.class.message
-      end
-    end
-
-    # Mixin for a resource that has an active `:update` action. Should be treated as private,
-    # and will be included automatically when appropriate.
-    module Updatable
-      private
-      # PUT the resource on the server and update our internal message. Private, since
-      # we should generally do this through the `save` method.
-      def update!
-        raise RuntimeError.new("Can't update a non-persisted object") if !persisted?
-        self.message = self.class.client.request path: "#{self.class.base_path}/#{id}",
-          method: Net::HTTP::Put,
-          message: message,
-          response_type: self.class.message
-      end
-    end
-
-    # Mixin for a resource that has an active `:destroy` action. Should be treated as private,
-    # and will be included automatically when appropriate.
-    module Destroyable
-      def destroy
-        raise RuntimeError.new("Can't destroy a non-persisted object") if !persisted?
-        self.message = self.class.client.request path: "#{self.class.base_path}/#{id}",
-          method: Net::HTTP::Delete,
-          message: nil,
-          response_type: self.class.message
-      end
-    end
-
-    # Internal helpers for non-resourceful member/collection methods. Never use these directly;
-    # instead, use the instance/class methods which have been dynamically defined on the resource
-    # you're working with.
-    module ExtraMethods
-      def self.member(resource, action, method, message, response_type)
-        response = resource.class.client.request path: "#{resource.class.base_path}/#{resource.id}/#{action}",
-          method: method,
-          message: message,
-          response_type: response_type
-        nil == response ? nil : ::Protip::Wrapper.new(response, resource.class.converter)
-      end
-      def self.collection(resource_class, action, method, message, response_type)
-        response = resource_class.client.request path: "#{resource_class.base_path}/#{action}",
-          method: method,
-          message: message,
-          response_type: response_type
-        nil == response ? nil : ::Protip::Wrapper.new(response, resource_class.converter)
-      end
-    end
-
     extend ActiveSupport::Concern
 
-    # Backport the ActiveModel::Model functionality - https://github.com/rails/rails/blob/097ca3f1f84bb9a2d3cda3f2cce7974a874efdf4/activemodel/lib/active_model/model.rb#L95
+    # Backport the ActiveModel::Model functionality
+    # https://github.com/rails/rails/blob/097ca3f1f84bb9a2d3cda3f2cce7974a874efdf4/activemodel/lib/active_model/model.rb#L95
     include ActiveModel::Validations
     include ActiveModel::Conversion
 
@@ -142,15 +49,23 @@ module Protip
       def_delegator :@wrapper, :message
       def_delegator :@wrapper, :as_json
     end
+
     module ClassMethods
+
+      VALID_ACTIONS = %i(show index create update destroy)
 
       attr_accessor :client
 
       attr_reader :message
 
       attr_writer :base_path
+
       def base_path
-        @base_path == nil ? raise(RuntimeError.new 'Base path not yet set') : @base_path.gsub(/\/$/, '')
+        if @base_path == nil
+          raise(RuntimeError.new 'Base path not yet set')
+        else
+          @base_path.gsub(/\/$/, '')
+        end
       end
 
       attr_writer :converter
@@ -162,13 +77,37 @@ module Protip
 
       # Primary entry point for defining resourceful behavior.
       def resource(actions:, message:, query: nil)
-        if @message
-          raise RuntimeError.new('Only one call to `resource` is allowed')
-        end
+        raise RuntimeError.new('Only one call to `resource` is allowed') if @message
+        validate_actions!(actions)
 
-        # Define attribute readers/writers
         @message = message
-        @message.descriptor.each do |field|
+
+        define_attribute_accessors(@message)
+        define_oneof_group_methods(@message)
+        define_resource_query_methods(query, actions)
+
+        include(::Protip::Resource::Creatable) if actions.include?(:create)
+        include(::Protip::Resource::Updatable) if actions.include?(:update)
+        include(::Protip::Resource::Destroyable) if actions.include?(:destroy)
+      end
+
+      def validate_actions!(actions)
+        actions.map!{|action| action.to_sym}
+        (actions - VALID_ACTIONS).each do |action|
+          raise ArgumentError.new("Unrecognized action: #{action}")
+        end
+      end
+
+      # Allow calls to oneof groups to get the set oneof field
+      def define_oneof_group_methods(message)
+        message.descriptor.each_oneof do |oneof_field|
+          def_delegator :@wrapper, :"#{oneof_field.name}"
+        end
+      end
+
+      # Define attribute readers/writers
+      def define_attribute_accessors(message)
+        message.descriptor.each do |field|
           def_delegator :@wrapper, :"#{field.name}"
           if ::Protip::Wrapper.matchable?(field)
             def_delegator :@wrapper, :"#{field.name}?"
@@ -182,30 +121,21 @@ module Protip
             # needed for ActiveModel::Dirty
             send("#{field.name}_will_change!") if new_wrapped_value != old_wrapped_value
           end
+
+          # needed for ActiveModel::Dirty
+          define_attribute_method field.name
         end
+      end
 
-        # Allow calls to oneof groups to get the set oneof field
-        @message.descriptor.each_oneof do |oneof_field|
-          def_delegator :@wrapper, :"#{oneof_field.name}"
-        end
-
-        # needed for ActiveModel::Dirty
-        define_attribute_methods @message.descriptor.map(&:name)
-
-        # Validate arguments
-        actions.map!{|action| action.to_sym}
-        (actions - %i(show index create update destroy)).each do |action|
-          raise ArgumentError.new("Unrecognized action: #{action}")
-        end
-
-        # For index/show, we want a different number of method arguments
-        # depending on whehter a query message was provided.
+      # For index/show, we want a different number of method arguments
+      # depending on whether a query message was provided.
+      def define_resource_query_methods(query, actions)
         if query
           if actions.include?(:show)
             define_singleton_method :find do |id, query_params = {}|
               wrapper = ::Protip::Wrapper.new(query.new, converter)
               wrapper.assign_attributes query_params
-              SearchMethods.show(self, id, wrapper.message)
+              ::Protip::Resource::SearchMethods.show(self, id, wrapper.message)
             end
           end
 
@@ -213,26 +143,22 @@ module Protip
             define_singleton_method :all do |query_params = {}|
               wrapper = ::Protip::Wrapper.new(query.new, converter)
               wrapper.assign_attributes query_params
-              SearchMethods.index(self, wrapper.message)
+              ::Protip::Resource::SearchMethods.index(self, wrapper.message)
             end
           end
         else
           if actions.include?(:show)
             define_singleton_method :find do |id|
-              SearchMethods.show(self, id, nil)
+              ::Protip::Resource::SearchMethods.show(self, id, nil)
             end
           end
 
           if actions.include?(:index)
             define_singleton_method :all do
-              SearchMethods.index(self, nil)
+              ::Protip::Resource::SearchMethods.index(self, nil)
             end
           end
         end
-
-        include(Creatable) if actions.include?(:create)
-        include(Updatable) if actions.include?(:update)
-        include(Destroyable) if actions.include?(:destroy)
       end
 
       def member(action:, method:, request: nil, response: nil)
@@ -240,11 +166,11 @@ module Protip
           define_method action do |request_params = {}|
             wrapper = ::Protip::Wrapper.new(request.new, self.class.converter)
             wrapper.assign_attributes request_params
-            ExtraMethods.member self, action, method, wrapper.message, response
+            ::Protip::Resource::ExtraMethods.member self, action, method, wrapper.message, response
           end
         else
           define_method action do
-            ExtraMethods.member self, action, method, nil, response
+            ::Protip::Resource::ExtraMethods.member self, action, method, nil, response
           end
         end
       end
@@ -254,11 +180,15 @@ module Protip
           define_singleton_method action do |request_params = {}|
             wrapper = ::Protip::Wrapper.new(request.new, converter)
             wrapper.assign_attributes request_params
-            ExtraMethods.collection self, action, method, wrapper.message, response
+            ::Protip::Resource::ExtraMethods.collection self,
+                                                        action,
+                                                        method,
+                                                        wrapper.message,
+                                                        response
           end
         else
           define_singleton_method action do
-            ExtraMethods.collection self, action, method, nil, response
+            ::Protip::Resource::ExtraMethods.collection self, action, method, nil, response
           end
         end
       end
@@ -333,5 +263,6 @@ module Protip
       @previously_changed = changes
       @changed_attributes.clear
     end
+
   end
 end
