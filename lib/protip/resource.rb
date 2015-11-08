@@ -52,11 +52,14 @@ module Protip
 
     module ClassMethods
 
+      VALID_ACTIONS = %i(show index create update destroy)
+
       attr_accessor :client
 
       attr_reader :message
 
       attr_writer :base_path
+
       def base_path
         if @base_path == nil
           raise(RuntimeError.new 'Base path not yet set')
@@ -74,13 +77,37 @@ module Protip
 
       # Primary entry point for defining resourceful behavior.
       def resource(actions:, message:, query: nil)
-        if @message
-          raise RuntimeError.new('Only one call to `resource` is allowed')
-        end
+        raise RuntimeError.new('Only one call to `resource` is allowed') if @message
+        validate_actions!(actions)
 
-        # Define attribute readers/writers
         @message = message
-        @message.descriptor.each do |field|
+
+        define_attribute_accessors(@message)
+        define_oneof_group_methods(@message)
+        define_resource_query_methods(query, actions)
+
+        include(::Protip::Resource::Creatable) if actions.include?(:create)
+        include(::Protip::Resource::Updatable) if actions.include?(:update)
+        include(::Protip::Resource::Destroyable) if actions.include?(:destroy)
+      end
+
+      def validate_actions!(actions)
+        actions.map!{|action| action.to_sym}
+        (actions - VALID_ACTIONS).each do |action|
+          raise ArgumentError.new("Unrecognized action: #{action}")
+        end
+      end
+
+      # Allow calls to oneof groups to get the set oneof field
+      def define_oneof_group_methods(message)
+        message.descriptor.each_oneof do |oneof_field|
+          def_delegator :@wrapper, :"#{oneof_field.name}"
+        end
+      end
+
+      # Define attribute readers/writers
+      def define_attribute_accessors(message)
+        message.descriptor.each do |field|
           def_delegator :@wrapper, :"#{field.name}"
           if ::Protip::Wrapper.matchable?(field)
             def_delegator :@wrapper, :"#{field.name}?"
@@ -94,30 +121,21 @@ module Protip
             # needed for ActiveModel::Dirty
             send("#{field.name}_will_change!") if new_wrapped_value != old_wrapped_value
           end
+
+          # needed for ActiveModel::Dirty
+          define_attribute_method field.name
         end
+      end
 
-        # Allow calls to oneof groups to get the set oneof field
-        @message.descriptor.each_oneof do |oneof_field|
-          def_delegator :@wrapper, :"#{oneof_field.name}"
-        end
-
-        # needed for ActiveModel::Dirty
-        define_attribute_methods @message.descriptor.map(&:name)
-
-        # Validate arguments
-        actions.map!{|action| action.to_sym}
-        (actions - %i(show index create update destroy)).each do |action|
-          raise ArgumentError.new("Unrecognized action: #{action}")
-        end
-
-        # For index/show, we want a different number of method arguments
-        # depending on whehter a query message was provided.
+      # For index/show, we want a different number of method arguments
+      # depending on whether a query message was provided.
+      def define_resource_query_methods(query, actions)
         if query
           if actions.include?(:show)
             define_singleton_method :find do |id, query_params = {}|
               wrapper = ::Protip::Wrapper.new(query.new, converter)
               wrapper.assign_attributes query_params
-              SearchMethods.show(self, id, wrapper.message)
+              ::Protip::Resource::SearchMethods.show(self, id, wrapper.message)
             end
           end
 
@@ -125,26 +143,22 @@ module Protip
             define_singleton_method :all do |query_params = {}|
               wrapper = ::Protip::Wrapper.new(query.new, converter)
               wrapper.assign_attributes query_params
-              SearchMethods.index(self, wrapper.message)
+              ::Protip::Resource::SearchMethods.index(self, wrapper.message)
             end
           end
         else
           if actions.include?(:show)
             define_singleton_method :find do |id|
-              SearchMethods.show(self, id, nil)
+              ::Protip::Resource::SearchMethods.show(self, id, nil)
             end
           end
 
           if actions.include?(:index)
             define_singleton_method :all do
-              SearchMethods.index(self, nil)
+              ::Protip::Resource::SearchMethods.index(self, nil)
             end
           end
         end
-
-        include(Creatable) if actions.include?(:create)
-        include(Updatable) if actions.include?(:update)
-        include(Destroyable) if actions.include?(:destroy)
       end
 
       def member(action:, method:, request: nil, response: nil)
@@ -152,11 +166,11 @@ module Protip
           define_method action do |request_params = {}|
             wrapper = ::Protip::Wrapper.new(request.new, self.class.converter)
             wrapper.assign_attributes request_params
-            ExtraMethods.member self, action, method, wrapper.message, response
+            ::Protip::Resource::ExtraMethods.member self, action, method, wrapper.message, response
           end
         else
           define_method action do
-            ExtraMethods.member self, action, method, nil, response
+            ::Protip::Resource::ExtraMethods.member self, action, method, nil, response
           end
         end
       end
@@ -166,11 +180,15 @@ module Protip
           define_singleton_method action do |request_params = {}|
             wrapper = ::Protip::Wrapper.new(request.new, converter)
             wrapper.assign_attributes request_params
-            ExtraMethods.collection self, action, method, wrapper.message, response
+            ::Protip::Resource::ExtraMethods.collection self,
+                                                        action,
+                                                        method,
+                                                        wrapper.message,
+                                                        response
           end
         else
           define_singleton_method action do
-            ExtraMethods.collection self, action, method, nil, response
+            ::Protip::Resource::ExtraMethods.collection self, action, method, nil, response
           end
         end
       end
