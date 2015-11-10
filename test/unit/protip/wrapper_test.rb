@@ -65,13 +65,6 @@ module Protip::WrapperTest # namespace for internal constants
       mock.responds_like_instance_of(Class.new { include Protip::Client })
     end
 
-    let :converter do
-      Class.new do
-        include Protip::Converter
-      end.new
-    end
-
-
     # Call `resource_class` to get an empty resource type.
     let :resource_class do
       resource_class = Class.new do
