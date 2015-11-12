@@ -204,6 +204,8 @@ module Protip
       if field.type == :message
         if nil == value
           nil
+        # This check must happen before the nested_resources check to ensure nested messages
+        # are set properly
         elsif value.is_a?(field.subtype.msgclass)
           value
         elsif converter.convertible?(field.subtype.msgclass)

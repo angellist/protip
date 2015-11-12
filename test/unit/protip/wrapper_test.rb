@@ -466,7 +466,10 @@ module Protip::WrapperTest # namespace for internal constants
         resource.expects(:message).once.returns(new_inner_message)
         wrapper.inner = resource
 
-        assert_equal new_inner_message, wrapper.message.inner
+        assert_equal new_inner_message,
+                     wrapper.message.inner,
+                     'Wrapper did not set its message\'s inner message value to the value of the '\
+                     'given resource\'s message'
       end
 
       it 'raises an error when setting an enum field to an undefined value' do
