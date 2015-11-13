@@ -56,9 +56,9 @@ module Protip
 
       attr_accessor :client
 
-      attr_reader :message
+      attr_reader :message, :nested_resources
 
-      attr_writer :base_path
+      attr_writer :base_path, :converter
 
       def base_path
         if @base_path == nil
@@ -68,7 +68,6 @@ module Protip
         end
       end
 
-      attr_writer :converter
       def converter
         @converter || (@_standard_converter ||= Protip::StandardConverter.new)
       end
@@ -76,11 +75,13 @@ module Protip
       private
 
       # Primary entry point for defining resourceful behavior.
-      def resource(actions:, message:, query: nil)
+      def resource(actions:, message:, query: nil, nested_resources: {})
         raise RuntimeError.new('Only one call to `resource` is allowed') if @message
         validate_actions!(actions)
+        validate_nested_resources!(nested_resources)
 
         @message = message
+        @nested_resources = nested_resources
 
         define_attribute_accessors(@message)
         define_oneof_group_methods(@message)
@@ -89,6 +90,17 @@ module Protip
         include(::Protip::Resource::Creatable) if actions.include?(:create)
         include(::Protip::Resource::Updatable) if actions.include?(:update)
         include(::Protip::Resource::Destroyable) if actions.include?(:destroy)
+      end
+
+      def validate_nested_resources!(nested_resources)
+        nested_resources.each do |key, resource_klass|
+          unless key.is_a?(Symbol)
+            raise "#{key} must be a Symbol, but is a #{key.class}"
+          end
+          unless resource_klass < ::Protip::Resource
+            raise "#{resource_klass} is not a Protip::Resource"
+          end
+        end
       end
 
       def validate_actions!(actions)
@@ -215,7 +227,7 @@ module Protip
     end
 
     def message=(message)
-      @wrapper = Protip::Wrapper.new(message, self.class.converter)
+      @wrapper = Protip::Wrapper.new(message, self.class.converter, self.class.nested_resources)
     end
 
     def save

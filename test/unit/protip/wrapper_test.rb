@@ -1,8 +1,8 @@
 require 'test_helper'
 
 require 'google/protobuf'
-require 'protip/converter'
 require 'protip/wrapper'
+require 'protip/resource'
 
 module Protip::WrapperTest # namespace for internal constants
   describe Protip::Wrapper do
@@ -58,6 +58,24 @@ module Protip::WrapperTest # namespace for internal constants
       let(:"#{name}_class") do
         pool.lookup(name).msgclass
       end
+    end
+
+    # Stubbed API client
+    let :client do
+      mock.responds_like_instance_of(Class.new { include Protip::Client })
+    end
+
+    # Call `resource_class` to get an empty resource type.
+    let :resource_class do
+      resource_class = Class.new do
+        include Protip::Resource
+        self.base_path = 'base_path'
+        class << self
+          attr_accessor :client
+        end
+      end
+      resource_class.client = client
+      resource_class
     end
 
     let(:wrapped_message) do
@@ -346,6 +364,13 @@ module Protip::WrapperTest # namespace for internal constants
     end
 
     describe '#get' do
+      before do
+        resource_class.class_exec(converter, inner_message_class) do |converter, message|
+          resource actions: [], message: message
+          self.converter = converter
+        end
+      end
+
       it 'does not convert simple fields' do
         converter.expects(:convertible?).never
         converter.expects(:to_object).never
@@ -364,6 +389,14 @@ module Protip::WrapperTest # namespace for internal constants
         assert_equal Protip::Wrapper.new(inner_message_class.new(value: 25), converter), wrapper.inner
       end
 
+      it 'wraps nested resource messages in their defined resource' do
+        message = wrapped_message
+        klass = resource_class
+        wrapper = Protip::Wrapper.new(message, Protip::StandardConverter.new, {inner: klass})
+        assert_equal klass, wrapper.inner.class
+        assert_equal message.inner, wrapper.inner.message
+      end
+
       it 'returns nil for messages that have not been set' do
         converter.expects(:convertible?).never
         converter.expects(:to_object).never
@@ -372,6 +405,14 @@ module Protip::WrapperTest # namespace for internal constants
     end
 
     describe 'attribute writer' do # generated via method_missing?
+
+      before do
+        resource_class.class_exec(converter, inner_message_class) do |converter, message|
+          resource actions: [], message: message
+          self.converter = converter
+        end
+      end
+
       it 'does not convert simple fields' do
         converter.expects(:convertible?).never
         converter.expects(:to_message).never
@@ -412,6 +453,23 @@ module Protip::WrapperTest # namespace for internal constants
         converter.expects(:to_message).never
         wrapper.inner = message
         assert_equal inner_message_class.new(value: 50), wrapper.message.inner
+      end
+
+      it 'for nested resources, sets the resource\'s message' do
+        message = wrapped_message
+        klass = resource_class
+        new_inner_message = inner_message_class.new(value: 50)
+
+        resource = klass.new new_inner_message
+        wrapper = Protip::Wrapper.new(message, Protip::StandardConverter.new, {inner: klass})
+
+        resource.expects(:message).once.returns(new_inner_message)
+        wrapper.inner = resource
+
+        assert_equal new_inner_message,
+                     wrapper.message.inner,
+                     'Wrapper did not set its message\'s inner message value to the value of the '\
+                     'given resource\'s message'
       end
 
       it 'raises an error when setting an enum field to an undefined value' do

@@ -88,119 +88,153 @@ module Protip::ResourceTest # Namespace for internal constants
           include Protip::Converter
         end.new
       end
-
-      before do
-        resource_class.class_exec(converter, resource_message_class) do |converter, message|
-          resource actions: [], message: message
-          self.converter = converter
-        end
-      end
-
-      it 'can only be invoked once' do
-        assert_raises RuntimeError do
-          resource_class.class_exec(resource_message_class) do |message|
+      describe 'with basic resource' do
+        before do
+          resource_class.class_exec(converter, resource_message_class) do |converter, message|
             resource actions: [], message: message
+            self.converter = converter
+          end
+        end
+
+        it 'can only be invoked once' do
+          assert_raises RuntimeError do
+            resource_class.class_exec(resource_message_class) do |message|
+              resource actions: [], message: message
+            end
+          end
+        end
+
+        it 'defines accessors for the fields on its message' do
+          resource = resource_class.new
+          [:id, :string].each do |method|
+            assert_respond_to resource, method
+          end
+          refute_respond_to resource, :foo
+        end
+
+        it 'defines accessors for oneof groups on its message' do
+          resource = resource_class.new
+          group_name = 'oneof_group'
+          assert resource.message.class.descriptor.lookup_oneof(group_name)
+          assert_respond_to resource, group_name
+        end
+
+        it 'returns nil if the oneof group accessor called when the underlying fields are not set' do
+          resource = resource_class.new
+          assert_nil resource.oneof_group
+        end
+
+        it 'returns the active oneof field when a oneof group accessor is called' do
+          resource = resource_class.new
+          foo, bar = 'foo', 'bar'
+          resource.oneof_string1 = foo
+          assert_equal resource.oneof_string1, resource.oneof_group
+          resource.oneof_string2 = bar
+          assert_equal resource.oneof_string2, resource.oneof_group
+          resource.oneof_string2 = bar
+          resource.oneof_string1 = foo
+          assert_equal resource.oneof_string1, resource.oneof_group
+        end
+
+        it 'sets fields on the underlying message when simple setters are called' do
+          resource = resource_class.new
+          resource.string = 'intern'
+          assert_equal 'intern', resource.message.string
+          assert_equal 'intern', resource.string
+        end
+
+        it 'never checks with the converter when setting simple types' do
+          converter.expects(:convertible?).never
+          resource = resource_class.new
+          resource.string = 'intern'
+        end
+
+        it 'checks with the converter when setting message types' do
+          converter.expects(:convertible?).at_least_once.with(nested_message_class).returns(false)
+          resource = resource_class.new
+          assert_raises(ArgumentError) do
+            resource.nested_message = 5
+          end
+        end
+
+        it 'converts message types to and from their Ruby values when the converter allows' do
+          converter.expects(:convertible?).at_least_once.with(nested_message_class).returns(true)
+          converter.expects(:to_message).once.with(6, nested_message_class).returns(nested_message_class.new number: 100)
+          converter.expects(:to_object).at_least_once.with(nested_message_class.new number: 100).returns 'intern'
+
+          resource = resource_class.new
+          resource.nested_message = 6
+
+          assert_equal nested_message_class.new(number: 100), resource.message.nested_message, 'object was not converted'
+          assert_equal 'intern', resource.nested_message, 'message was not converted'
+        end
+
+        describe '(query methods)' do
+          let(:resource) { resource_class.new }
+          it 'defines query methods for the scalar enums on its message' do
+            assert_respond_to resource, :number?
+            assert resource.number?(:ZERO)
+            refute resource.number?(:ONE)
+          end
+
+          it 'defines query methods for the booleans on its message' do
+            assert_respond_to resource, :boolean?
+            refute resource.boolean?
+          end
+
+          it 'defines query methods for the google.protobuf.BoolValues on its message' do
+            assert_respond_to resource, :google_bool_value?
+            refute resource.google_bool_value?
+          end
+
+          it 'does not define query methods for repeated enums' do
+            refute_respond_to resource, :numbers?
+            assert_raises NoMethodError do
+              resource.numbers?(:ZERO)
+            end
+          end
+
+          it 'does not define query methods for non-enum fields' do
+            refute_respond_to resource, :inner?
+            assert_raises NoMethodError do
+              resource.inner?(:ZERO)
+            end
+          end
+        end
+      end
+      describe 'with empty nested resources' do
+        it 'does not throw an error' do
+          resource_class.class_exec(converter, resource_message_class) do |converter, message|
+            resource actions: [], message: message, nested_resources: {}
+            self.converter = converter
           end
         end
       end
 
-      it 'defines accessors for the fields on its message' do
-        resource = resource_class.new
-        [:id, :string].each do |method|
-          assert_respond_to resource, method
-        end
-        refute_respond_to resource, :foo
-      end
-
-      it 'defines accessors for oneof groups on its message' do
-        resource = resource_class.new
-        group_name = 'oneof_group'
-        assert resource.message.class.descriptor.lookup_oneof(group_name)
-        assert_respond_to resource, group_name
-      end
-
-      it 'returns nil if the oneof group accessor called when the underlying fields are not set' do
-        resource = resource_class.new
-        assert_nil resource.oneof_group
-      end
-
-      it 'returns the active oneof field when a oneof group accessor is called' do
-        resource = resource_class.new
-        foo, bar = 'foo', 'bar'
-        resource.oneof_string1 = foo
-        assert_equal resource.oneof_string1, resource.oneof_group
-        resource.oneof_string2 = bar
-        assert_equal resource.oneof_string2, resource.oneof_group
-        resource.oneof_string2 = bar
-        resource.oneof_string1 = foo
-        assert_equal resource.oneof_string1, resource.oneof_group
-      end
-
-      it 'sets fields on the underlying message when simple setters are called' do
-        resource = resource_class.new
-        resource.string = 'intern'
-        assert_equal 'intern', resource.message.string
-        assert_equal 'intern', resource.string
-      end
-
-      it 'never checks with the converter when setting simple types' do
-        converter.expects(:convertible?).never
-        resource = resource_class.new
-        resource.string = 'intern'
-      end
-
-      it 'checks with the converter when setting message types' do
-        converter.expects(:convertible?).at_least_once.with(nested_message_class).returns(false)
-        resource = resource_class.new
-        assert_raises(ArgumentError) do
-          resource.nested_message = 5
-        end
-      end
-
-      it 'converts message types to and from their Ruby values when the converter allows' do
-        converter.expects(:convertible?).at_least_once.with(nested_message_class).returns(true)
-        converter.expects(:to_message).once.with(6, nested_message_class).returns(nested_message_class.new number: 100)
-        converter.expects(:to_object).at_least_once.with(nested_message_class.new number: 100).returns 'intern'
-
-        resource = resource_class.new
-        resource.nested_message = 6
-
-        assert_equal nested_message_class.new(number: 100), resource.message.nested_message, 'object was not converted'
-        assert_equal 'intern', resource.nested_message, 'message was not converted'
-      end
-
-      describe '(query methods)' do
-        let(:resource) { resource_class.new }
-        it 'defines query methods for the scalar enums on its message' do
-          assert_respond_to resource, :number?
-          assert resource.number?(:ZERO)
-          refute resource.number?(:ONE)
-        end
-
-        it 'defines query methods for the booleans on its message' do
-          assert_respond_to resource, :boolean?
-          refute resource.boolean?
-        end
-
-        it 'defines query methods for the google.protobuf.BoolValues on its message' do
-          assert_respond_to resource, :google_bool_value?
-          refute resource.google_bool_value?
-        end
-
-        it 'does not define query methods for repeated enums' do
-          refute_respond_to resource, :numbers?
-          assert_raises NoMethodError do
-            resource.numbers?(:ZERO)
-          end
-        end
-
-        it 'does not define query methods for non-enum fields' do
-          refute_respond_to resource, :inner?
-          assert_raises NoMethodError do
-            resource.inner?(:ZERO)
+      describe 'with invalid nested resource key' do
+        it 'throws an error' do
+          assert_raises RuntimeError do
+            resource_class.class_exec(converter, resource_message_class) do |converter, message|
+              resource actions: [],
+                message: message,
+                nested_resources: {'snoop' => Protip::Resource}
+              self.converter = converter
+            end
           end
         end
       end
+
+      describe 'with invalid nested resource class' do
+        it 'throws an error' do
+          assert_raises RuntimeError do
+            resource_class.class_exec(converter, resource_message_class) do |converter, message|
+              resource actions: [], message: message, nested_resources: {dogg: Object}
+              self.converter = converter
+            end
+          end
+        end
+      end
+
     end
 
     # index/find/member/collection actions should all convert more complex Ruby objects to submessages in their
