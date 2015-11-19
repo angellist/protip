@@ -2,10 +2,12 @@ require 'protip/converter'
 
 require 'protip/messages/types'
 require 'google/protobuf'
-
 module Protip
   class StandardConverter
     include Protip::Converter
+
+    TRUTH_VALUES = [true, 1, '1', 't', 'T', 'true', 'TRUE']
+    FALSE_VALUES = [nil, false, 0, '0', 'f', 'F', 'false', 'FALSE']
 
     class << self
       attr_reader :conversions
@@ -22,7 +24,7 @@ module Protip
     }
 
     ## Standard wrappers
-    %w(Int64 Int32 UInt64 UInt32 Double Float Bool String Bytes).map{|type| "google.protobuf.#{type}Value"}.each do |name|
+    %w(Int64 Int32 UInt64 UInt32 Double Float String Bytes).map{|type| "google.protobuf.#{type}Value"}.each do |name|
       @conversions[name] = {
         to_object: ->(message) { message.value },
         to_message: lambda do |value, message_class|
@@ -30,6 +32,13 @@ module Protip
         end
       }
     end
+
+    conversions['google.protobuf.BoolValue'] = {
+      to_object: ->(message) { message.value },
+      to_message: lambda do |value, message_class|
+      message_class.new value: value_to_boolean(value)
+    end
+    }
 
     def convertible?(message_class)
       self.class.conversions.has_key?(message_class.descriptor.name)
@@ -41,6 +50,17 @@ module Protip
 
     def to_message(object, message_class)
       self.class.conversions[message_class.descriptor.name][:to_message].call(object, message_class)
+    end
+
+    class << self
+      # Similar to Rails 3 value_to_boolean
+      def value_to_boolean(value)
+        return true if TRUTH_VALUES.include?(value)
+        return false if FALSE_VALUES.include?(value)
+        # If we don't get a truthy/falsey value, use the original value (which should raise an
+        # exception)
+        value
+      end
     end
   end
 end
