@@ -85,21 +85,21 @@ describe Protip::StandardConverter do
     end
 
     it 'converts truthy values to booleans' do
-      [true, 1, '1', 't', 'T', 'true', 'TRUE'].each do |truth_value|
+      [true, 1, '1', 't', 'T', 'true', 'TRUE', 'on', 'ON'].each do |truth_value|
         assert_equal Google::Protobuf::BoolValue.new(value: true),
                      converter.to_message(truth_value, Google::Protobuf::BoolValue)
       end
     end
 
     it 'converts falsey values to booleans' do
-      [nil, false, 0, '0', 'f', 'F', 'false', 'FALSE'].each do |false_value|
+      [false, 0, '0', 'f', 'F', 'false', 'FALSE', 'off', 'OFF'].each do |false_value|
         assert_equal Google::Protobuf::BoolValue.new(value: false),
                      converter.to_message(false_value, Google::Protobuf::BoolValue)
       end
     end
 
     it 'raises an exception if non-boolean values passed to boolean field' do
-      ['test', Object.new, 2, {}, []].each do |bad_value|
+      [nil, 'test', Object.new, 2, {}, []].each do |bad_value|
         assert_raises TypeError do
           converter.to_message(bad_value, Google::Protobuf::BoolValue)
         end

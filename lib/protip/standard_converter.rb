@@ -6,8 +6,8 @@ module Protip
   class StandardConverter
     include Protip::Converter
 
-    TRUTH_VALUES = [true, 1, '1', 't', 'T', 'true', 'TRUE']
-    FALSE_VALUES = [nil, false, 0, '0', 'f', 'F', 'false', 'FALSE']
+    TRUTH_VALUES = [true, 1, '1', 't', 'T', 'true', 'TRUE', 'on', 'ON']
+    FALSE_VALUES = [false, 0, '0', 'f', 'F', 'false', 'FALSE', 'off', 'OFF']
 
     class << self
       attr_reader :conversions
