@@ -83,5 +83,28 @@ describe Protip::StandardConverter do
       assert_equal 7, date.day # Sanity check argument order
       assert_equal ::Protip::Messages::Date.new(year: 2012, month: 5, day: 7), converter.to_message(date, ::Protip::Messages::Date)
     end
+
+    it 'converts truthy values to booleans' do
+      [true, 1, '1', 't', 'T', 'true', 'TRUE'].each do |truth_value|
+        assert_equal Google::Protobuf::BoolValue.new(value: true),
+                     converter.to_message(truth_value, Google::Protobuf::BoolValue)
+      end
+    end
+
+    it 'converts falsey values to booleans' do
+      [nil, false, 0, '0', 'f', 'F', 'false', 'FALSE'].each do |false_value|
+        assert_equal Google::Protobuf::BoolValue.new(value: false),
+                     converter.to_message(false_value, Google::Protobuf::BoolValue)
+      end
+    end
+
+    it 'raises an exception if non-boolean values passed to boolean field' do
+      ['test', Object.new, 2, {}, []].each do |bad_value|
+        assert_raises TypeError do
+          converter.to_message(bad_value, Google::Protobuf::BoolValue)
+        end
+      end
+    end
+
   end
 end
