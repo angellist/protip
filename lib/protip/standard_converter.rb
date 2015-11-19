@@ -6,7 +6,7 @@ module Protip
   class StandardConverter
     include Protip::Converter
 
-    TRUTH_VALUES = [true, 1, '1', 't', 'T', 'true', 'TRUE', 'on', 'ON']
+    TRUE_VALUES = [true, 1, '1', 't', 'T', 'true', 'TRUE', 'on', 'ON']
     FALSE_VALUES = [false, 0, '0', 'f', 'F', 'false', 'FALSE', 'off', 'OFF']
 
     class << self
@@ -55,7 +55,7 @@ module Protip
     class << self
       # Similar to Rails 3 value_to_boolean
       def value_to_boolean(value)
-        return true if TRUTH_VALUES.include?(value)
+        return true if TRUE_VALUES.include?(value)
         return false if FALSE_VALUES.include?(value)
         # If we don't get a truthy/falsey value, use the original value (which should raise an
         # exception)
