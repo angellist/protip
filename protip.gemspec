@@ -7,8 +7,11 @@ Gem::Specification.new do |spec|
   spec.homepage      = 'https://github.com/AngelList/protip'
   spec.summary       = 'Resources backed by protobuf messages'
   spec.authors       = ['AngelList']
-  spec.email         = ['team@angel.co', 'k2@angel.co']
-  spec.files         = Dir['lib/**/*.rb'] + Dir['test/**/*.rb'] + Dir['definitions/**/*.proto'] + Dir['build/**/*.rb']
+  spec.email         = ['team@angel.co', 'k2@angel.co', 'brian@angel.co', 'paul@angel.co']
+  spec.files         = Dir['lib/**/*.rb'] +
+                       Dir['test/**/*.rb'] +
+                       Dir['definitions/**/*.proto'] +
+                       Dir['build/**/*.rb']
 
   spec.required_ruby_version = '>= 2.1.0'
 
