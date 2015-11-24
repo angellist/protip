@@ -136,7 +136,7 @@ describe Protip::StandardConverter do
       money = ::Money.new(250, 'CAD')
       message = converter.to_message(money, ::Protip::Messages::Money)
       assert_instance_of ::Protip::Messages::Money, message
-      assert_equal ::Protip::Messages::Money.new(cents: money.cents, currency: money.currency),
+      assert_equal ::Protip::Messages::Money.new(amount_cents: money.cents, currency: money.currency.iso_code.to_sym),
                    message
     end
 
