@@ -1,4 +1,5 @@
 require 'test_helper'
+require 'money'
 
 require 'google/protobuf/wrappers'
 require 'protip/standard_converter'
@@ -90,11 +91,12 @@ describe Protip::StandardConverter do
     end
 
     it 'converts money' do
-      money = converter.to_object(::Protip::Messages::Money.new 2.5.to_money('CAD'))
+      message = ::Protip::Messages::Money.new amount_cents: 250, currency: :CAD
+      money = converter.to_object(message)
       assert_instance_of ::Money, money
       assert_equal 'CAD', money.currency
-      assert_equal 250, money.to_i
-      assert_equal 2.5.to_money('CAD'), money
+      assert_equal 250, money.fractional
+      assert_equal ::Money.new(250, 'CAD'), money
     end
   end
 
@@ -131,7 +133,7 @@ describe Protip::StandardConverter do
     end
 
     it 'converts money' do
-      money = 2.5.to_money('CAD')
+      money = ::Money.new(250, 'CAD')
       message = converter.to_message(money, ::Protip::Messages::Money)
       assert_instance_of ::Protip::Messages::Money, message
       assert_equal ::Protip::Messages::Money.new(cents: money.cents, currency: money.currency),
