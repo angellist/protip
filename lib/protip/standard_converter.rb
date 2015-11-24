@@ -1,5 +1,6 @@
 require 'protip/converter'
 
+require 'protip/messages/range'
 require 'protip/messages/types'
 require 'google/protobuf'
 module Protip
@@ -20,6 +21,13 @@ module Protip
       to_message: lambda do |date, message_class|
         raise ArgumentError unless date.is_a?(::Date)
         message_class.new year: date.year, month: date.month, day: date.day
+      end
+    }
+
+    @conversions['protip.messages.Range'] = {
+      to_object: ->(message) { message.begin..message.end },
+      to_message: ->(range, message_class) do
+        message_class.new(begin: range.begin.to_i, end: range.end.to_i)
       end
     }
 

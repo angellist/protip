@@ -26,10 +26,14 @@ describe Protip::StandardConverter do
     [Google::Protobuf::BytesValue]
   end
 
+  let(:range_types) do
+    [Protip::Messages::Range]
+  end
+
 
   describe '#convertible?' do
     it 'converts all standard types' do
-      (integer_types + float_types + string_types + bool_types + [Protip::Messages::Date]).each do |message_class|
+      (integer_types + float_types + string_types + bool_types + range_types + [Protip::Messages::Date]).each do |message_class|
         assert converter.convertible?(message_class), "expected type #{message_class.descriptor.name} not convertible"
       end
     end
@@ -61,6 +65,12 @@ describe Protip::StandardConverter do
       assert_instance_of ::Date, date
       assert_equal '2015-02-09', date.strftime
     end
+
+    it 'converts ranges' do
+      range = converter.to_object(::Protip::Messages::Range.new begin: 1, end: 4)
+      assert_instance_of ::Range, range
+      assert_equal 1..4, range
+    end
   end
 
   describe '#to_message' do
@@ -82,6 +92,11 @@ describe Protip::StandardConverter do
       date = ::Date.new(2012, 5, 7)
       assert_equal 7, date.day # Sanity check argument order
       assert_equal ::Protip::Messages::Date.new(year: 2012, month: 5, day: 7), converter.to_message(date, ::Protip::Messages::Date)
+    end
+
+    it 'converts ranges' do
+      range = -1..34
+      assert_equal ::Protip::Messages::Range.new(begin: -1, end: 34), converter.to_message(range, ::Protip::Messages::Range)
     end
 
     it 'converts truthy values to booleans' do
