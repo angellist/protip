@@ -1,5 +1,7 @@
 require 'protip/converter'
 
+require 'protip/messages/currency'
+require 'protip/messages/money'
 require 'protip/messages/range'
 require 'protip/messages/types'
 require 'google/protobuf'
@@ -16,6 +18,11 @@ module Protip
     @conversions = {}
 
     ## Protip types
+    @conversions['protip.messages.Currency'] = {
+      to_object: ->(message) { message.currency_code },
+      to_message: ->(currency_code, message_class) { message_class.new currency_code: currency_code }
+    }
+
     @conversions['protip.messages.Date'] = {
       to_object: ->(message) { ::Date.new(message.year, message.month, message.day) },
       to_message: lambda do |date, message_class|

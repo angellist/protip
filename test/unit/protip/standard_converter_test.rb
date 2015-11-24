@@ -85,8 +85,8 @@ describe Protip::StandardConverter do
     end
 
     it 'converts currency' do
-      currency = converter.to_object(::Protip::Messages::Currency.new currency_code: 'GBP')
-      assert_equal 'GBP', currency
+      currency = converter.to_object(::Protip::Messages::Currency.new currency_code: :GBP)
+      assert_equal :GBP, currency
     end
 
     it 'converts money' do
