@@ -125,9 +125,9 @@ describe Protip::StandardConverter do
     end
 
     it 'converts currency' do
-      currency = 'HKD'
-      message = converter.to_message(currency, ::Protip::Messages::Currency.new)
-      assert_equal ::Protip::Messages::Currency.new(currency), message
+      currency = :HKD
+      message = converter.to_message(currency, ::Protip::Messages::Currency)
+      assert_equal ::Protip::Messages::Currency.new(currency_code: currency), message
     end
 
     it 'converts money' do
