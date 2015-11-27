@@ -3,4 +3,3 @@
 /gemfiles/*.lock
 /pkg/
 /.bundle/
-/.idea/
