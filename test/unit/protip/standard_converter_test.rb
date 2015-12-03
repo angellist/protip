@@ -91,10 +91,11 @@ describe Protip::StandardConverter do
     end
 
     it 'converts money' do
-      message = ::Protip::Messages::Money.new amount_cents: 250, currency: :CAD
+      message = ::Protip::Messages::Money.new amount_cents: 250,
+                                              currency: (::Protip::Messages::Currency.new currency_code: :CAD)
       money = converter.to_object(message)
       assert_instance_of ::Money, money
-      assert_equal 'CAD', money.currency
+      assert_equal Money::Currency.new(:CAD), money.currency
       assert_equal 250, money.fractional
       assert_equal ::Money.new(250, 'CAD'), money
     end
@@ -136,7 +137,11 @@ describe Protip::StandardConverter do
       money = ::Money.new(250, 'CAD')
       message = converter.to_message(money, ::Protip::Messages::Money)
       assert_instance_of ::Protip::Messages::Money, message
-      assert_equal ::Protip::Messages::Money.new(amount_cents: money.cents, currency: money.currency.iso_code.to_sym),
+      assert_equal ::Protip::Messages::Money.new(
+                     amount_cents: money.cents,
+                     currency: ::Protip::Messages::Currency.new(
+                       currency_code: money.currency.iso_code.to_sym
+                     )),
                    message
     end
 

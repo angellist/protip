@@ -26,12 +26,15 @@ module Protip
     }
 
     @conversions['protip.messages.Money'] = {
-      to_object: ->(message) { ::Money.new(message.amount_cents, message.currency) },
+      to_object: ->(message) do
+        ::Money.new(message.amount_cents, message.currency.currency_code)
+      end,
       to_message: ->(money, message_class) do
         raise ArgumentError unless money.is_a?(::Money)
+        currency = ::Protip::Messages::Currency.new(currency_code: money.currency.iso_code.to_sym)
         message_class.new(
           amount_cents: money.fractional,
-          currency: ::Protip::Messages::Money::Currency.resolve(money.currency.iso_code.to_sym)
+          currency: currency
         )
       end
     }
