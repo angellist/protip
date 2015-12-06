@@ -1,4 +1,5 @@
 require 'test_helper'
+require 'money'
 
 require 'google/protobuf/wrappers'
 require 'protip/standard_converter'
@@ -7,11 +8,19 @@ describe Protip::StandardConverter do
   let(:converter) { Protip::StandardConverter.new }
 
   let(:integer_types) do
-    [Google::Protobuf::Int64Value, Google::Protobuf::Int32Value, Google::Protobuf::UInt64Value, Google::Protobuf::UInt32Value]
+    [
+      Google::Protobuf::Int64Value,
+      Google::Protobuf::Int32Value,
+      Google::Protobuf::UInt64Value,
+      Google::Protobuf::UInt32Value
+    ]
   end
 
   let(:float_types) do
-    [Google::Protobuf::FloatValue, Google::Protobuf::DoubleValue]
+    [
+      Google::Protobuf::FloatValue,
+      Google::Protobuf::DoubleValue
+    ]
   end
 
   let(:bool_types) do
@@ -26,10 +35,18 @@ describe Protip::StandardConverter do
     [Google::Protobuf::BytesValue]
   end
 
+  let(:protip_types) do
+    [
+      Protip::Messages::Range,
+      Protip::Messages::Date,
+      Protip::Messages::Money,
+      Protip::Messages::Currency
+    ]
+  end
 
   describe '#convertible?' do
     it 'converts all standard types' do
-      (integer_types + float_types + string_types + bool_types + [Protip::Messages::Date]).each do |message_class|
+      (integer_types + float_types + string_types + bool_types + protip_types).each do |message_class|
         assert converter.convertible?(message_class), "expected type #{message_class.descriptor.name} not convertible"
       end
     end
@@ -61,6 +78,27 @@ describe Protip::StandardConverter do
       assert_instance_of ::Date, date
       assert_equal '2015-02-09', date.strftime
     end
+
+    it 'converts ranges' do
+      range = converter.to_object(::Protip::Messages::Range.new begin: 1, end: 4)
+      assert_instance_of ::Range, range
+      assert_equal 1..4, range
+    end
+
+    it 'converts currency' do
+      currency = converter.to_object(::Protip::Messages::Currency.new currency_code: :GBP)
+      assert_equal :GBP, currency
+    end
+
+    it 'converts money' do
+      message = ::Protip::Messages::Money.new amount_cents: 250,
+                                              currency: (::Protip::Messages::Currency.new currency_code: :CAD)
+      money = converter.to_object(message)
+      assert_instance_of ::Money, money
+      assert_equal Money::Currency.new(:CAD), money.currency
+      assert_equal 250, money.fractional
+      assert_equal ::Money.new(250, 'CAD'), money
+    end
   end
 
   describe '#to_message' do
@@ -84,6 +122,29 @@ describe Protip::StandardConverter do
       assert_equal ::Protip::Messages::Date.new(year: 2012, month: 5, day: 7), converter.to_message(date, ::Protip::Messages::Date)
     end
 
+    it 'converts ranges' do
+      range = -1..34
+      assert_equal ::Protip::Messages::Range.new(begin: -1, end: 34), converter.to_message(range, ::Protip::Messages::Range)
+    end
+
+    it 'converts currency' do
+      currency = :HKD
+      message = converter.to_message(currency, ::Protip::Messages::Currency)
+      assert_equal ::Protip::Messages::Currency.new(currency_code: currency), message
+    end
+
+    it 'converts money' do
+      money = ::Money.new(250, 'CAD')
+      message = converter.to_message(money, ::Protip::Messages::Money)
+      assert_instance_of ::Protip::Messages::Money, message
+      assert_equal ::Protip::Messages::Money.new(
+                     amount_cents: money.cents,
+                     currency: ::Protip::Messages::Currency.new(
+                       currency_code: money.currency.iso_code.to_sym
+                     )),
+                   message
+    end
+
     it 'converts truthy values to booleans' do
       [true, 1, '1', 't', 'T', 'true', 'TRUE', 'on', 'ON'].each do |truth_value|
         assert_equal Google::Protobuf::BoolValue.new(value: true),
@@ -105,6 +166,5 @@ describe Protip::StandardConverter do
         end
       end
     end
-
   end
 end

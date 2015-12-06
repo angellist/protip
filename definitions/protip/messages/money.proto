@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+import "protip/messages/currency.proto";
+
+package protip.messages;
+
+message Money {
+  int64 amount_cents = 1;
+  Currency currency = 2;
+}
