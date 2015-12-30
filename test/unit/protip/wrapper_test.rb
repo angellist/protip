@@ -478,6 +478,16 @@ module Protip::WrapperTest # namespace for internal constants
         end
       end
 
+      it 'allows enum fields to be set to nil' do
+        # first set `number` and assert that it's set
+        wrapper.number = :ONE
+        assert_equal :ONE, wrapper.number
+
+        # now test that it can be set to nil
+        wrapper.number = nil
+        assert_equal :ZERO, wrapper.number
+      end
+
       it 'allows strings to be set for enum fields' do
         wrapper.number = 'ONE'
         assert_equal :ONE, wrapper.number
