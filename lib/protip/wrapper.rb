@@ -217,7 +217,7 @@ module Protip
         end
       elsif field.type == :enum
         if nil == value
-          # Enum fields can't be nil. Enum 0 is the default value.
+          # Enum fields can't be nil. The 0th enum is the default value.
           0
         elsif value.is_a?(Fixnum)
           value
