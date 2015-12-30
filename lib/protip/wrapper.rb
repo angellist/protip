@@ -216,7 +216,7 @@ module Protip
           raise ArgumentError.new "Cannot convert from Ruby object: \"#{field}\""
         end
       elsif field.type == :enum
-        value.is_a?(Fixnum) ? value : value.to_sym
+        value.is_a?(Fixnum) ? value : value.try(:to_sym)
       else
         value
       end
