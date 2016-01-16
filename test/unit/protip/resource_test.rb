@@ -667,7 +667,13 @@ module Protip::ResourceTest # Namespace for internal constants
           # Set up an errors instance variable that we can set actual messages on
           @errors = Protip::Messages::Errors.new
 
-          exception = Protip::UnprocessableEntityError.new mock, mock
+          request = mock
+          request.stubs(:uri).returns('http://some.uri')
+
+          response = mock
+          response.stubs(code: 500, body: @errors.to_proto)
+
+          exception = Protip::UnprocessableEntityError.new request, response
           exception.stubs(:errors).returns @errors
           client.stubs(:request).raises(exception)
 
