@@ -8,6 +8,12 @@ module Protip
     def initialize(request, response)
       @request = request
       @response = response
+
+      msg = <<-MSG
+Received HTTP #{response.code} from #{request.uri}. Response:
+#{response.body}
+      MSG
+      super(msg)
     end
 
     def inspect
