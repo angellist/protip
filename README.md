@@ -40,7 +40,7 @@ Developing
 ----------
 
 To build message classes, you'll need to install the latest (currently
-3.0.0.alpha.3.1) version of [`protoc`](https://github.com/google/protobuf).
+3.0.0-beta-2) version of [`protoc`](https://github.com/google/protobuf).
 
 Build message classes: `rake compile`
 
