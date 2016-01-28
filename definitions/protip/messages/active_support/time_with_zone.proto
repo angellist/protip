@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package protip.messages.ActiveSupport;
+
+message TimeWithZone {
+  int64 utc_timestamp = 1;
+  string time_zone_name = 2;
+}
