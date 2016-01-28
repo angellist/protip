@@ -1,8 +1,6 @@
 require 'money'
 
 require 'active_support/time_with_zone'
-require 'active_support/core_ext/time'
-require 'active_support/core_ext/date_time'
 
 require 'protip/converter'
 
@@ -85,7 +83,7 @@ module Protip
       },
       to_message: ->(value, message_class) {
         if !value.is_a?(::ActiveSupport::TimeWithZone) && (value.is_a?(Time) || value.is_a?(DateTime))
-          value = value.in_time_zone(::ActiveSupport::TimeZone.new('UTC'))
+          value = ::ActiveSupport::TimeWithZone.new(value.to_time.utc, ::ActiveSupport::TimeZone.new('UTC'))
         end
         raise ArgumentError unless value.is_a?(::ActiveSupport::TimeWithZone)
 

@@ -107,7 +107,7 @@ describe Protip::StandardConverter do
       time = converter.to_object(message)
       assert_instance_of ::ActiveSupport::TimeWithZone, time
       assert_equal 1451610000, time.to_i
-      assert_equal '2015-12-31 17:00:00 -0800', time.to_s
+      assert_equal '2015-12-31T17:00:00-08:00', time.iso8601
     end
   end
 
