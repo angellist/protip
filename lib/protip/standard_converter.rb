@@ -1,5 +1,9 @@
 require 'money'
 
+require 'active_support/time_with_zone'
+require 'active_support/core_ext/time'
+require 'active_support/core_ext/date_time'
+
 require 'protip/converter'
 
 require 'protip/messages/currency'
@@ -67,8 +71,29 @@ module Protip
     conversions['google.protobuf.BoolValue'] = {
       to_object: ->(message) { message.value },
       to_message: lambda do |value, message_class|
-      message_class.new value: value_to_boolean(value)
-    end
+        message_class.new value: value_to_boolean(value)
+      end
+    }
+
+    ## ActiveSupport objects
+    conversions['protip.messages.ActiveSupport.TimeWithZone'] = {
+      to_object: ->(message) {
+        ActiveSupport::TimeWithZone.new(
+          Time.at(message.utc_timestamp).utc,
+          ActiveSupport::TimeZone.new(message.time_zone_name)
+        )
+      },
+      to_message: ->(value, message_class) {
+        if !value.is_a?(::ActiveSupport::TimeWithZone) && (value.is_a?(Time) || value.is_a?(DateTime))
+          value = value.in_time_zone(::ActiveSupport::TimeZone.new('UTC'))
+        end
+        raise ArgumentError unless value.is_a?(::ActiveSupport::TimeWithZone)
+
+        message_class.new(
+          utc_timestamp: value.to_i,
+          time_zone_name: value.time_zone.name,
+        )
+      }
     }
 
     def convertible?(message_class)

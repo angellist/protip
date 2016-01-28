@@ -2,6 +2,7 @@ require 'test_helper'
 require 'money'
 
 require 'google/protobuf/wrappers'
+require 'protip/messages/active_support/time_with_zone'
 require 'protip/standard_converter'
 
 describe Protip::StandardConverter do
@@ -99,6 +100,15 @@ describe Protip::StandardConverter do
       assert_equal 250, money.fractional
       assert_equal ::Money.new(250, 'CAD'), money
     end
+
+    it 'converts times with zones' do
+      message = ::Protip::Messages::ActiveSupport::TimeWithZone.new utc_timestamp: 1451610000,
+                                                                    time_zone_name: 'America/Los_Angeles'
+      time = converter.to_object(message)
+      assert_instance_of ::ActiveSupport::TimeWithZone, time
+      assert_equal 1451610000, time.to_i
+      assert_equal '2015-12-31 17:00:00 -0800', time.to_s
+    end
   end
 
   describe '#to_message' do
@@ -165,6 +175,29 @@ describe Protip::StandardConverter do
           converter.to_message(bad_value, Google::Protobuf::BoolValue)
         end
       end
+    end
+
+    it 'converts times with zones' do
+      time_with_zone = ::ActiveSupport::TimeWithZone.new(Time.new(2016, 1, 1, 0, 0, 0, 0),
+        ::ActiveSupport::TimeZone.new('America/New_York'))
+      message = converter.to_message(time_with_zone, ::Protip::Messages::ActiveSupport::TimeWithZone)
+      assert_equal 1451606400, message.utc_timestamp
+      assert_equal 'America/New_York', message.time_zone_name
+    end
+
+    it 'converts times without zones' do
+      time = Time.new(2016, 1, 1, 0, 0, 0, -3600)
+      message = converter.to_message(time, ::Protip::Messages::ActiveSupport::TimeWithZone)
+      assert_equal 1451610000, message.utc_timestamp
+      assert_equal 'UTC', message.time_zone_name
+    end
+
+    it 'converts datetimes without zones' do
+      datetime = DateTime.new(2016, 1, 1, 0, 0, 0, '-1')
+      message = converter.to_message(datetime, ::Protip::Messages::ActiveSupport::TimeWithZone)
+      assert_equal 1451610000, message.utc_timestamp
+      assert_equal 'UTC', message.time_zone_name
+
     end
   end
 end
