@@ -201,6 +201,9 @@ module Protip
 
     def set(field, value)
       if field.label == :repeated
+        if !value.is_a?(Enumerable) # Wrap non-enumerable values to allow assigning scalars
+          value = [value]
+        end
         message[field.name].replace value.map{|v| to_protobuf_value field, v}
       else
         message[field.name] = to_protobuf_value(field, value)
