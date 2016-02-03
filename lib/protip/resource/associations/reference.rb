@@ -27,7 +27,6 @@ module Protip
           end
         end
 
-        private
         # Individual reference classes must implement
         def resource_class
           raise NotImplementedError
