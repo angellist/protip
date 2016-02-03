@@ -232,4 +232,12 @@ describe 'Protip::Resource (functional)' do
   describe '.collection' do
     # TODO
   end
+
+  describe '.references_through' do
+    # TODO
+  end
+
+  describe '.references_through_one_of' do
+    # TODO
+  end
 end
