@@ -24,7 +24,7 @@ module Protip
           ).to_sym
 
           # The resource type that we're pointing to
-          @reference_class = (class_name || default_class_name(@id_field)).constantize
+          @reference_class = (class_name || self.class.default_class_name(@id_field)).constantize
         end
 
         def read(resource)
@@ -37,13 +37,20 @@ module Protip
         end
 
         def write(resource, value)
-          # TODO: error if a value with an empty ID is passed in?
+          if value != nil
+            unless value.is_a?(reference_class)
+              raise ArgumentError.new("Cannot assign #{value.class} to #{resource_class}##{@id_field}")
+            end
+            unless value.persisted?
+              raise "Cannot assign non-persisted resource to association #{resource_class}##{reference_name}"
+            end
+          end
           resource.public_send(:"#{@id_field}=", value.try(:id))
         end
 
         class << self
           def default_class_name(id_field)
-            Protip::Resource::Associations::Reference.default_reference_name(id_field).classify
+            Protip::Resource::Associations::Reference.default_reference_name(id_field).to_s.classify
           end
         end
       end

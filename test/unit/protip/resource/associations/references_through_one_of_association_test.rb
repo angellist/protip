@@ -2,7 +2,7 @@ require 'test_helper'
 
 require 'protip/resource/associations/references_through_one_of_association'
 
-describe 'Protip::Resource::Associations::ReferencesThroughOneOfAssociation' do
+describe Protip::Resource::Associations::ReferencesThroughOneOfAssociation do
 
   let :resource_class do
     pool = Google::Protobuf::DescriptorPool.new

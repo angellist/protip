@@ -3,7 +3,7 @@ require 'test_helper'
 require 'google/protobuf'
 require 'protip/resource/associations/reference'
 
-describe 'Protip::Resource::Associations::Reference' do
+describe Protip::Resource::Associations::Reference do
   let :resource_class do
     pool = Google::Protobuf::DescriptorPool.new
     pool.build do
