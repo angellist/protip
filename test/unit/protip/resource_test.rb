@@ -865,6 +865,32 @@ module Protip::ResourceTest # Namespace for internal constants
       describe_non_resourceful_action 'collection', 'base_path/action'
     end
 
+    {
+      references_through: Protip::Resource::Associations::ReferencesThroughAssociation,
+      references_through_one_of: Protip::Resource::Associations::ReferencesThroughOneOfAssociation,
+    }.each do |method, association_class|
+      describe ".#{method}" do
+        it 'creates an association of the correct type and defines accessors' do
+          association = mock.responds_like_instance_of(association_class)
+          association_class.expects(:new).once.with(resource_class, :some_id, {class_name: 'Foo'}).returns(association)
+          association.expects(:define_accessors!)
+          resource_class.class_exec(method) do
+            send(method, :some_id, class_name: 'Foo')
+          end
+        end
+
+        it 'raises an error on invalid options' do
+          error = assert_raises ArgumentError do
+            resource_class.class_exec(method) do
+              send(method, :some_id, bad_option: 'bad')
+            end
+          end
+
+          assert_match /bad_option/, error.message
+        end
+      end
+    end
+
     describe '.converter' do
       describe 'default value' do
         it 'defaults to the standard converter' do

@@ -29,6 +29,8 @@ require 'protip/resource/updateable'
 require 'protip/resource/destroyable'
 require 'protip/resource/extra_methods'
 require 'protip/resource/search_methods'
+require 'protip/resource/associations/references_through_association'
+require 'protip/resource/associations/references_through_one_of_association'
 
 module Protip
   module Resource
@@ -203,6 +205,14 @@ module Protip
             ::Protip::Resource::ExtraMethods.collection self, action, method, nil, response
           end
         end
+      end
+
+      def references_through(id_field, options = {})
+        ::Protip::Resource::Associations::ReferencesThroughAssociation.new(self, id_field, options).define_accessors!
+      end
+      def references_through_one_of(id_field, options = {})
+        ::Protip::Resource::Associations::ReferencesThroughOneOfAssociation.new(self, id_field, options)
+          .define_accessors!
       end
     end
 
