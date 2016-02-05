@@ -73,10 +73,10 @@ describe Protip::Resource::Associations::ReferencesThroughAssociation do
 
   describe '(accessors)' do
     let :reference do
-      Object.stub_const 'ReferencedResource', referenced_resource_class do
-        Protip::Resource::Associations::ReferencesThroughAssociation.new resource_class, :referenced_resource_id,
-                                                                         class_name: 'ReferencedResource'
-      end
+      reference = Protip::Resource::Associations::ReferencesThroughAssociation.new resource_class,
+        :referenced_resource_id
+      reference.stubs(:reference_class).returns(referenced_resource_class)
+      reference
     end
 
     let :resource do

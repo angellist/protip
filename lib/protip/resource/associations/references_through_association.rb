@@ -9,7 +9,7 @@ module Protip
 
         include Protip::Resource::Associations::Reference
 
-        attr_reader :resource_class, :reference_name, :reference_class
+        attr_reader :resource_class, :reference_name
 
         def initialize(resource_class, id_field, reference_name: nil, class_name: nil)
           # The resource type that houses the association
@@ -23,8 +23,11 @@ module Protip
             reference_name || Protip::Resource::Associations::Reference.default_reference_name(id_field)
           ).to_sym
 
-          # The resource type that we're pointing to
-          @reference_class = (class_name || self.class.default_class_name(@id_field)).constantize
+          @class_name = (class_name || self.class.default_class_name(@id_field)).to_s
+        end
+
+        def reference_class
+          @reference_class ||= @class_name.constantize
         end
 
         def read(resource)
@@ -32,7 +35,7 @@ module Protip
           if id == nil
             nil
           else
-            @reference_class.find id
+            reference_class.find id
           end
         end
 
