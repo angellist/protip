@@ -3,27 +3,17 @@
 module Protip
   module Resource
     module Associations
-      module Reference
+      module Association
 
         def define_accessors!
-          resource_class.class_exec(self, reference_name) do |association, reference_name|
-            define_method(reference_name) do
+          resource_class.class_exec(self, association_name) do |association, association_name|
+            define_method(association_name) do
               association.read(self)
             end
 
-            define_method(:"#{reference_name}=") do |value|
+            define_method(:"#{association_name}=") do |value|
               association.write(self, value)
             end
-          end
-        end
-
-        class << self
-          def default_reference_name(field)
-            default = field.to_s.gsub(/_id$/, '').to_sym
-            if default.to_s == field.to_s
-              raise "Cannot create a default reference name for field #{field}"
-            end
-            default
           end
         end
 
@@ -32,7 +22,7 @@ module Protip
           raise NotImplementedError
         end
 
-        def reference_name
+        def association_name
           raise NotImplementedError
         end
 

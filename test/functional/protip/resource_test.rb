@@ -28,26 +28,27 @@ describe 'Protip::Resource (functional)' do
         optional :ordered_tests, :string, 3
         optional :nested_message, :message, 4, 'nested_message'
         optional :nested_int, :message, 5, 'google.protobuf.Int64Value'
+        optional :association_id, :message, 6, 'google.protobuf.Int64Value'
       end
 
       add_message 'resource_query' do
-        optional :param, :string, 6
+        optional :param, :string, 7
       end
 
       add_message 'name_response' do
-        optional :name, :string, 7
+        optional :name, :string, 8
       end
 
       add_message 'search_request' do
-        optional :term, :string, 8
+        optional :term, :string, 9
       end
 
       add_message 'search_response' do
-        repeated :results, :string, 9
+        repeated :results, :string, 10
       end
 
       add_message 'fetch_request' do
-        repeated :names, :string, 10
+        repeated :names, :string, 11
       end
     end
     pool
@@ -112,10 +113,19 @@ describe 'Protip::Resource (functional)' do
         assert_equal 2, results.length, 'incorrect number of resources were returned'
         results.each { |result| assert_instance_of resource_class, result, 'incorrect type was parsed'}
 
-        assert_equal({'ordered_tests' => 'bilbo', 'id' => 0, 'nested_message' => nil, 'nested_int' => 42},
-          results[0].attributes)
-        assert_equal({'ordered_tests' => 'baggins', 'id' => 1, 'nested_message' => nil, 'nested_int' => 43},
-          results[1].attributes)
+        assert_equal(
+          {
+            'ordered_tests' => 'bilbo', 'id' => 0, 'nested_message' => nil, 'nested_int' => 42, 'association_id' => nil
+          },
+          results[0].attributes
+        )
+        assert_equal(
+          {
+            'ordered_tests' => 'baggins', 'id' => 1, 'nested_message' => nil, 'nested_int' => 43,
+            'association_id' => nil
+          },
+          results[1].attributes
+      )
       end
 
       it 'allows requests without parameters' do
@@ -233,11 +243,40 @@ describe 'Protip::Resource (functional)' do
     # TODO
   end
 
-  describe '.references_through' do
-    # TODO
+  describe '.belongs_to' do
+    before do
+      resource_class.class_eval do
+        belongs_to :association, class_name: 'ResourceClass', id_field: :association_id
+      end
+    end
+
+    it 'returns nil when no association ID has been set' do
+      Object.stub_const(:ResourceClass, resource_class) do
+        resource_class.expects(:find).never
+        assert_nil resource_class.new.association
+      end
+    end
+
+    it 'fetches the associated resource' do
+      Object.stub_const(:ResourceClass, resource_class) do
+        associated = mock
+        resource_class.expects(:find).once.with(123).returns(associated)
+        assert_equal associated, resource_class.new(association_id: 123).association
+      end
+    end
+
+    it 'allows writing the associated resource' do
+      Object.stub_const(:ResourceClass, resource_class) do
+        associated = resource_class.new
+        associated.id = 5
+        base = resource_class.new
+        base.association = associated
+        assert_equal 5, base.association_id
+      end
+    end
   end
 
-  describe '.references_through_one_of' do
+  describe '.belongs_to_polymorphic' do
     # TODO
   end
 end

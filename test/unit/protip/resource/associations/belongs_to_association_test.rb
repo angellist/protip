@@ -1,8 +1,8 @@
 require 'test_helper'
 
-require 'protip/resource/associations/references_through_association'
+require 'protip/resource/associations/belongs_to_association'
 
-describe Protip::Resource::Associations::ReferencesThroughAssociation do
+describe Protip::Resource::Associations::BelongsToAssociation do
   let :pool do
     pool = Google::Protobuf::DescriptorPool.new
     pool.build do
@@ -14,7 +14,7 @@ describe Protip::Resource::Associations::ReferencesThroughAssociation do
         optional :id, :message, 1, 'google.protobuf.StringValue'
         optional :referenced_resource_id, :message, 2, 'google.protobuf.StringValue'
       end
-      add_message 'ReferenceMessage' do
+      add_message 'ReferencedResourceMessage' do
         optional :id, :message, 1, 'google.protobuf.StringValue'
       end
     end
@@ -35,47 +35,51 @@ describe Protip::Resource::Associations::ReferencesThroughAssociation do
       include Protip::Resource
     end
     klass.class_exec(pool) do |pool|
-      resource actions: [], message: pool.lookup('ReferenceMessage').msgclass
+      resource actions: [], message: pool.lookup('ReferencedResourceMessage').msgclass
     end
     klass
   end
 
   describe '#initialize' do
-    it 'chooses a default class based on the ID field' do
-      Object.stub_const 'ReferencedResource', referenced_resource_class do
-        reference = Protip::Resource::Associations::ReferencesThroughAssociation.new resource_class,
-          :referenced_resource_id
-        assert_equal referenced_resource_class, reference.reference_class
+    describe '(class_name option)' do
+      # These rely on private behavior - that `associated_resource_class` gives the association class after init
+      it 'chooses a default class based on the association name' do
+        Object.stub_const 'ReferencedResource', referenced_resource_class do
+          reference = Protip::Resource::Associations::BelongsToAssociation.new resource_class,
+            :referenced_resource
+          assert_equal referenced_resource_class, reference.associated_resource_class
+        end
+      end
+      it 'allows a class name to be set' do
+        Object.stub_const 'Foo', referenced_resource_class do
+          reference = Protip::Resource::Associations::BelongsToAssociation.new resource_class,
+            :referenced_resource, class_name: 'Foo'
+          assert_equal referenced_resource_class, reference.associated_resource_class
+        end
       end
     end
-    it 'allows a class name to be set' do
-      Object.stub_const 'Foo', referenced_resource_class do
-        reference = Protip::Resource::Associations::ReferencesThroughAssociation.new resource_class,
-          :referenced_resource_id, class_name: 'Foo'
-        assert_equal referenced_resource_class, reference.reference_class
+    describe '(id_field option)' do
+      it 'chooses a default ID field based on the association name' do
+        Object.stub_const 'ReferencedResource', referenced_resource_class do
+          reference = Protip::Resource::Associations::BelongsToAssociation.new resource_class,
+            :referenced_resource
+          assert_equal :referenced_resource_id, reference.id_field
+        end
       end
-    end
-    it 'chooses a default association name based on the ID field' do
-      Object.stub_const 'ReferencedResource', referenced_resource_class do
-        reference = Protip::Resource::Associations::ReferencesThroughAssociation.new resource_class,
-          :referenced_resource_id
-        assert_equal :referenced_resource, reference.reference_name
-      end
-    end
-    it 'allows an association name to be set' do
-      Object.stub_const 'ReferencedResource', referenced_resource_class do
-        reference = Protip::Resource::Associations::ReferencesThroughAssociation.new resource_class,
-          :referenced_resource_id, reference_name: :foo
-        assert_equal :foo, reference.reference_name
+      it 'allows an association name to be set' do
+        Object.stub_const 'ReferencedResource', referenced_resource_class do
+          reference = Protip::Resource::Associations::BelongsToAssociation.new resource_class,
+            :referenced_resource, id_field: :foo_bar
+          assert_equal :foo_bar, reference.id_field
+        end
       end
     end
   end
 
   describe '(accessors)' do
     let :reference do
-      reference = Protip::Resource::Associations::ReferencesThroughAssociation.new resource_class,
-        :referenced_resource_id
-      reference.stubs(:reference_class).returns(referenced_resource_class)
+      reference = Protip::Resource::Associations::BelongsToAssociation.new resource_class, :referenced_resource
+      reference.stubs(:associated_resource_class).returns(referenced_resource_class) # internal behavior
       reference
     end
 

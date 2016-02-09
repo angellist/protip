@@ -29,8 +29,8 @@ require 'protip/resource/updateable'
 require 'protip/resource/destroyable'
 require 'protip/resource/extra_methods'
 require 'protip/resource/search_methods'
-require 'protip/resource/associations/references_through_association'
-require 'protip/resource/associations/references_through_one_of_association'
+require 'protip/resource/associations/belongs_to_association'
+require 'protip/resource/associations/belongs_to_polymorphic_association'
 
 module Protip
   module Resource
@@ -207,9 +207,35 @@ module Protip
         end
       end
 
-      def references_through(id_field, options = {})
-        ::Protip::Resource::Associations::ReferencesThroughAssociation.new(self, id_field, options).define_accessors!
+      def belongs_to(association_name, options = {})
+        association = ::Protip::Resource::Associations::BelongsToAssociation.new(self, association_name, options)
+        association.define_accessors!
+        association
       end
+
+      def belongs_to_polymorphic(association_name, options = {}, &block)
+        # We evaluate the block in the context of a wrapper that stores simple belongs-to associations
+        # as they're being created.
+        nested_association_creator = Class.new do
+          attr_reader :associations
+          def initialize(resource_class)
+            @resource_class = resource_class
+            @associations = []
+          end
+          def belongs_to(*args)
+            # Just forward the belongs_to call and store the result so we can pass it to the polymorphic association
+            @associations << @resource_class.send(:belongs_to, *args)
+          end
+        end.new(self)
+
+        nested_association_creator.instance_eval(&block)
+
+        association = ::Protip::Resource::Associations::BelongsToPolymorphicAssociation.new self,
+          association_name, nested_association_creator.associations, options
+        association.define_accessors!
+        association
+      end
+
       def references_through_one_of(id_field, options = {})
         ::Protip::Resource::Associations::ReferencesThroughOneOfAssociation.new(self, id_field, options)
           .define_accessors!

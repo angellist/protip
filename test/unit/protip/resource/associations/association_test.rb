@@ -1,9 +1,9 @@
 require 'test_helper'
 
 require 'google/protobuf'
-require 'protip/resource/associations/reference'
+require 'protip/resource/associations/association'
 
-describe Protip::Resource::Associations::Reference do
+describe Protip::Resource::Associations::Association do
   let :resource_class do
     pool = Google::Protobuf::DescriptorPool.new
     pool.build do
@@ -17,19 +17,19 @@ describe Protip::Resource::Associations::Reference do
     end
   end
 
-  let :reference_class do
+  let :association_class do
     Class.new do
-      include Protip::Resource::Associations::Reference
-      attr_reader :resource_class, :reference_name
-      def initialize(resource_class, reference_name)
-        @resource_class, @reference_name = resource_class, reference_name
+      include Protip::Resource::Associations::Association
+      attr_reader :resource_class, :association_name
+      def initialize(resource_class, association_name)
+        @resource_class, @association_name = resource_class, association_name
       end
     end
   end
 
   describe '#define_accessors!' do
-    let :reference do
-      reference_class.new(resource_class, :reference)
+    let :association do
+      association_class.new(resource_class, :reference)
     end
 
     it 'defines read and write methods' do
@@ -37,7 +37,7 @@ describe Protip::Resource::Associations::Reference do
       refute_includes resource_class.instance_methods, :reference, 'reader already set'
       refute_includes resource_class.instance_methods, :reference=, 'writer already set'
 
-      reference.define_accessors!
+      association.define_accessors!
 
       assert_includes resource_class.instance_methods, :reference, 'reader not set'
       assert_includes resource_class.instance_methods, :reference=, 'writer not set'
@@ -49,16 +49,16 @@ describe Protip::Resource::Associations::Reference do
       end
 
       before do
-        reference.define_accessors!
+        association.define_accessors!
       end
 
       it 'receives reader calls from resource instances' do
-        reference.expects(:read).once.with(resource)
+        association.expects(:read).once.with(resource)
         resource.reference
       end
 
       it 'receives writer calls from resource instances' do
-        reference.expects(:write).once.with(resource, 'test')
+        association.expects(:write).once.with(resource, 'test')
         resource.reference = 'test'
       end
     end
