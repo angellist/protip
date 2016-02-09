@@ -7,6 +7,7 @@ require 'protip/standard_converter'
 require 'protip/messages/test'
 
 describe Protip::StandardConverter do
+
   let :pool do
     # See https://github.com/google/protobuf/blob/master/ruby/tests/generated_code.rb for
     # examples of field types you can add here
@@ -21,7 +22,7 @@ describe Protip::StandardConverter do
   end
   let(:enum) { pool.lookup 'number' }
 
-  let(:converter) { Protip::StandardConverter.new }
+  let(:transformer) { Protip::StandardConverter.new }
 
   let(:integer_types) do
     [

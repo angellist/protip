@@ -1,11 +1,13 @@
 require 'active_support/concern'
 
-
 module Protip
-  module Converter
+  # Interface for an object that converts between messages and more complex Ruby types. Resources and wrapped
+  # messages store one of these to transparently allow getting/setting of message fields as if they were
+  # Ruby types.
+  module Transformer
     extend ActiveSupport::Concern
 
-    def convertible?(message_class)
+    def transformable?(message_class)
       raise NotImplementedError.new(
         'Must specify whether a message of a given type can be converted to/from a Ruby object'
       )

@@ -43,6 +43,12 @@ module Protip
 
     include ActiveModel::Dirty
 
+    # Shared transformer for all resources that don't explicitly specify their own. This is a delegating transformer,
+    # so gems may choose to extend its behavior using e.g. `Protip::Resource.default_transformer.add(MyTransformer.new)`
+    def self.default_transformer
+      @default_transformer ||= Protip::Transformers::DefaultTransformer.new
+    end
+
     included do
       extend ActiveModel::Naming
       extend ActiveModel::Translation
@@ -64,7 +70,7 @@ module Protip
 
       attr_reader :message, :nested_resources, :belongs_to_associations, :belongs_to_polymorphic_associations
 
-      attr_writer :base_path, :converter
+      attr_writer :base_path, :transformer
 
       def base_path
         if @base_path == nil
@@ -74,8 +80,8 @@ module Protip
         end
       end
 
-      def converter
-        @converter || (@_standard_converter ||= Protip::StandardConverter.new)
+      def transformer
+        @transformer || ::Protip::Resource.default_transformer
       end
 
       private

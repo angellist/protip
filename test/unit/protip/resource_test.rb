@@ -84,7 +84,7 @@ module Protip::ResourceTest # Namespace for internal constants
 
     describe '.resource' do
 
-      let :converter do
+      let :transformer do
         Class.new do
           include Protip::Converter
         end.new

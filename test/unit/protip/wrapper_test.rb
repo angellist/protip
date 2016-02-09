@@ -6,7 +6,7 @@ require 'protip/resource'
 
 module Protip::WrapperTest # namespace for internal constants
   describe Protip::Wrapper do
-    let(:converter) do
+    let(:transformer) do
       Class.new do
         include Protip::Converter
       end.new
