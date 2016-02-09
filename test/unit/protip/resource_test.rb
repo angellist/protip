@@ -865,6 +865,101 @@ module Protip::ResourceTest # Namespace for internal constants
       describe_non_resourceful_action 'collection', 'base_path/action'
     end
 
+    # Common tests for both types of belongs_to association. Assumes a `let(:association)` statement
+    # has been provided, to give a mock of the appropriate association with `define_accessors!` stubbed out
+    # If a block is needed to run the method, it can be provided
+    def self.describe_association_method!(method, association_class, &block)
+      describe '(common behvaior)' do
+        it 'defines accessors' do
+          association_class.expects(:new).once.returns(association)
+          association.expects(:define_accessors!).once
+          resource_class.class_exec(method) { |method| send method, :association_name, &block }
+        end
+
+        it 'returns the created association' do
+          association_class.expects(:new).once.returns(association)
+          resource_class.class_exec(method) { |method |@result = send method, :association_name, &block }
+          assert_equal association, resource_class.instance_variable_get(:'@result'), 'association was not returned'
+        end
+
+        it 'raises an error on invalid options' do
+          error = assert_raises ArgumentError do
+            resource_class.class_exec(method) do |method|
+              send method, :association_name, bad_option: 'bad', &block
+            end
+          end
+          assert_match /bad_option/, error.message
+        end
+      end
+    end
+
+    describe '.belongs_to' do
+      let :association do
+        association = mock.responds_like_instance_of Protip::Resource::Associations::BelongsToAssociation
+        association.stubs(:define_accessors!)
+        association
+      end
+
+      it 'creates a belongs_to association and passes in options' do
+        Protip::Resource::Associations::BelongsToAssociation.expects(:new).once
+          .with(resource_class, :association_name, class_name: 'Foo')
+          .returns(association)
+        resource_class.class_eval { belongs_to :association_name, class_name: 'Foo' }
+      end
+
+      describe_association_method! :belongs_to, Protip::Resource::Associations::BelongsToAssociation
+    end
+
+    describe '.belongs_to_polymorphic' do
+      let :association do
+        association = mock.responds_like_instance_of Protip::Resource::Associations::BelongsToPolymorphicAssociation
+        association.stubs(:define_accessors!)
+        association
+      end
+
+      it 'creates a polymorphic belongs_to association, passing in nested associations from its yielded block' do
+        nested_association = mock.responds_like_instance_of Protip::Resource::Associations::BelongsToAssociation
+        resource_class.expects(:belongs_to).once.with(:foo).returns(nested_association)
+
+        Protip::Resource::Associations::BelongsToPolymorphicAssociation.expects(:new).once
+          .with(resource_class, :bar, [nested_association], id_field: 'field').returns(association)
+
+        resource_class.class_eval do
+          belongs_to_polymorphic :bar, id_field: 'field' do
+            belongs_to :foo
+          end
+        end
+      end
+
+      describe_association_method!(:belongs_to_polymorphic,
+        Protip::Resource::Associations::BelongsToPolymorphicAssociation) { }
+    end
+
+    # {
+    #   references_through_one_of: Protip::Resource::Associations::ReferencesThroughOneOfAssociation,
+    # }.each do |method, association_class|
+    #   describe ".#{method}" do
+    #     it 'creates an association of the correct type and defines accessors' do
+    #       association = mock.responds_like_instance_of(association_class)
+    #       association_class.expects(:new).once.with(resource_class, :some_id, {class_name: 'Foo'}).returns(association)
+    #       association.expects(:define_accessors!)
+    #       resource_class.class_exec(method) do
+    #         send(method, :some_id, class_name: 'Foo')
+    #       end
+    #     end
+    #
+    #     it 'raises an error on invalid options' do
+    #       error = assert_raises ArgumentError do
+    #         resource_class.class_exec(method) do
+    #           send(method, :some_id, bad_option: 'bad')
+    #         end
+    #       end
+    #
+    #       assert_match /bad_option/, error.message
+    #     end
+    #   end
+    # end
+
     describe '.converter' do
       describe 'default value' do
         it 'defaults to the standard converter' do
