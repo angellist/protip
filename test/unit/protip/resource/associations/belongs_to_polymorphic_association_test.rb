@@ -70,6 +70,14 @@ describe Protip::Resource::Associations::BelongsToPolymorphicAssociation do
        :foo, [rick_ross_association, fetty_wap_association], id_field: :reference_id
       assert_equal :reference_id, association.id_field
     end
+
+    it 'stores the nested belongs-to associations' do
+      association = Protip::Resource::Associations::BelongsToPolymorphicAssociation.new resource_class,
+        :reference, [rick_ross_association, fetty_wap_association]
+      assert_equal 2, association.belongs_to_associations.length
+      assert_includes association.belongs_to_associations, rick_ross_association
+      assert_includes association.belongs_to_associations, fetty_wap_association
+    end
   end
 
   describe '(accessors)' do

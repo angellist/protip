@@ -50,6 +50,10 @@ module Protip
 
       def_delegator :@wrapper, :message
       def_delegator :@wrapper, :as_json
+
+      # Initialize housekeeping variables
+      @belongs_to_associations = Set.new
+      @belongs_to_polymorphic_associations = Set.new
     end
 
     module ClassMethods
@@ -58,7 +62,7 @@ module Protip
 
       attr_accessor :client
 
-      attr_reader :message, :nested_resources
+      attr_reader :message, :nested_resources, :belongs_to_associations, :belongs_to_polymorphic_associations
 
       attr_writer :base_path, :converter
 
@@ -210,6 +214,7 @@ module Protip
       def belongs_to(association_name, options = {})
         association = ::Protip::Resource::Associations::BelongsToAssociation.new(self, association_name, options)
         association.define_accessors!
+        @belongs_to_associations.add association
         association
       end
 
@@ -233,6 +238,7 @@ module Protip
         association = ::Protip::Resource::Associations::BelongsToPolymorphicAssociation.new self,
           association_name, nested_association_creator.associations, options
         association.define_accessors!
+        @belongs_to_polymorphic_associations.add association
         association
       end
 

@@ -882,6 +882,18 @@ module Protip::ResourceTest # Namespace for internal constants
           assert_equal association, resource_class.instance_variable_get(:'@result'), 'association was not returned'
         end
 
+        it 'stores the created association' do
+          association_class.expects(:new).once.returns(association)
+          resource_class.class_exec(method) { |method| send method, :association_name, &block }
+          assert_includes resource_class.public_send(:"#{method}_associations"), association
+        end
+
+        it 'initializes the set of associations to the empty set' do
+          stored_associations = resource_class.public_send(:"#{method}_associations")
+          assert_instance_of Set, stored_associations
+          assert_empty stored_associations
+        end
+
         it 'raises an error on invalid options' do
           error = assert_raises ArgumentError do
             resource_class.class_exec(method) do |method|
@@ -934,31 +946,6 @@ module Protip::ResourceTest # Namespace for internal constants
       describe_association_method!(:belongs_to_polymorphic,
         Protip::Resource::Associations::BelongsToPolymorphicAssociation) { }
     end
-
-    # {
-    #   references_through_one_of: Protip::Resource::Associations::ReferencesThroughOneOfAssociation,
-    # }.each do |method, association_class|
-    #   describe ".#{method}" do
-    #     it 'creates an association of the correct type and defines accessors' do
-    #       association = mock.responds_like_instance_of(association_class)
-    #       association_class.expects(:new).once.with(resource_class, :some_id, {class_name: 'Foo'}).returns(association)
-    #       association.expects(:define_accessors!)
-    #       resource_class.class_exec(method) do
-    #         send(method, :some_id, class_name: 'Foo')
-    #       end
-    #     end
-    #
-    #     it 'raises an error on invalid options' do
-    #       error = assert_raises ArgumentError do
-    #         resource_class.class_exec(method) do
-    #           send(method, :some_id, bad_option: 'bad')
-    #         end
-    #       end
-    #
-    #       assert_match /bad_option/, error.message
-    #     end
-    #   end
-    # end
 
     describe '.converter' do
       describe 'default value' do
