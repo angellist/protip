@@ -31,9 +31,7 @@ module Protip
       prepare_request(request)
 
       # TODO: Shared connection object for persisent connections.
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https') do |http|
-        http.request request
-      end
+      response = execute_request(request)
 
       if response.is_a?(Net::HTTPUnprocessableEntity)
         raise ::Protip::UnprocessableEntityError.new(request, response)
@@ -62,6 +60,19 @@ module Protip
     # @param request [Net::HTTPGenericRequest] the raw request object which is about to be sent
     def prepare_request(request)
       # No-op by default.
+    end
+
+    # Helper for obtaining the API server's response, overridable if any special handling
+    # is needed.
+    # TODO: (possibly) merge this with +prepare_request+
+    #
+    # @param request [Net::HTTPGenericRequest] the raw request object to send
+    # @return [Net::HTTPResponse] the response for the given request
+    def execute_request(request)
+      uri = request.uri
+      Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https') do |http|
+        http.request request
+      end
     end
   end
 end
