@@ -126,14 +126,13 @@ module Protip::ResourceTest # Namespace for internal constants
 
         it 'returns the active oneof field when a oneof group accessor is called' do
           resource = resource_class.new
-          foo, bar = 'foo', 'bar'
-          resource.oneof_string1 = foo
-          assert_equal resource.oneof_string1, resource.oneof_group
-          resource.oneof_string2 = bar
-          assert_equal resource.oneof_string2, resource.oneof_group
-          resource.oneof_string2 = bar
-          resource.oneof_string1 = foo
-          assert_equal resource.oneof_string1, resource.oneof_group
+          resource.oneof_string1 = 'foo'
+          assert_equal 'foo', resource.oneof_group
+          resource.oneof_string2 = 'bar'
+          assert_equal 'bar', resource.oneof_group
+          resource.oneof_string2 = 'bar'
+          resource.oneof_string1 = 'foo'
+          assert_equal 'foo', resource.oneof_group
         end
 
         it 'sets fields on the underlying message when simple setters are called' do

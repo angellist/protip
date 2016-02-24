@@ -18,34 +18,47 @@ module Protip
 
     def respond_to?(name)
       if super
-        true
+        return true
       else
         # Responds to calls to oneof groups by name
         return true if message.class.descriptor.lookup_oneof(name.to_s)
 
         # Responds to field getters, setters, and in the scalar enum case, query methods
-        message.class.descriptor.any? do |field|
-          regex = /^#{field.name}[=#{self.class.matchable?(field) ? '\\?' : ''}]?$/
-          name.to_s =~ regex
+        field = message.class.descriptor.lookup(name.to_s.gsub(/[=?]$/, ''))
+        return false if !field
+        if name[-1, 1] == '?'
+          # For query methods, only respond  if the field is matchable
+          return self.class.matchable?(field)
+        else
+          return true
         end
       end
+      false
     end
 
     def method_missing(name, *args)
       descriptor = message.class.descriptor
+      name = name.to_s
+      last_char = name[-1, 1]
 
-      is_setter_method = name =~ /=$/
-      return method_missing_setter(name, *args) if is_setter_method
+      if last_char == '='
+        return method_missing_set(name, *args)
+      end
 
-      is_query_method = name =~ /\?$/
-      return method_missing_query(name, *args) if is_query_method
+      if last_char == '?'
+        return method_missing_query(name, *args)
+      end
 
-      field = descriptor.detect{|field| field.name.to_sym == name}
-      return method_missing_field(field, *args) if field
+      field = descriptor.lookup(name)
+      if field
+        return method_missing_field(field, *args)
+      end
 
-      oneof_descriptor = descriptor.lookup_oneof(name.to_s)
+      oneof = descriptor.lookup_oneof(name)
       # For calls to a oneof group, return the active oneof field, or nil if there isn't one
-      return method_missing_oneof(oneof_descriptor) if oneof_descriptor
+      if oneof
+        return method_missing_oneof(oneof, *args)
+      end
 
       super
     end
@@ -99,10 +112,8 @@ module Protip
     # @return [NilClass]
     def assign_attributes(attributes)
       attributes.each do |field_name, value|
-        field = message.class.descriptor.detect{|field| field.name == field_name.to_s}
-        if !field
-          raise ArgumentError.new("Unrecognized field: #{field_name}")
-        end
+        field = message.class.descriptor.lookup(field_name.to_s) ||
+          (raise ArgumentError.new("Unrecognized field: #{field_name}"))
 
         # For inconvertible nested messages, the value should be either a hash or a message
         if field.type == :message && !converter.convertible?(field.subtype.msgclass)
@@ -235,44 +246,36 @@ module Protip
 
     end
 
-    def method_missing_oneof(oneof_descriptor)
-      oneof_field_name = message.send(oneof_descriptor.name)
-      return if oneof_field_name.nil?
-      oneof_field_name = oneof_field_name.to_s
-      oneof_field = oneof_descriptor.detect {|field| field.name == oneof_field_name}
-      oneof_field ? get(oneof_field) : nil
+    def method_missing_oneof(oneof, *args)
+      raise ArgumentError unless args.length == 0
+      field_name = message.public_send(oneof.name)
+
+      field_name ? get(message.class.descriptor.lookup(field_name.to_s)) : nil
     end
 
     def method_missing_field(field, *args)
-      if field
-        raise ArgumentError unless args.length == 0
-        get(field)
-      end
+      raise ArgumentError unless args.length == 0
+      get field
     end
 
     def method_missing_query(name, *args)
-      field = message.class.descriptor.detect do |field|
-        self.class.matchable?(field) && :"#{field.name}?" == name
-      end
-      if args.length == 1
-        # this is an enum query, e.g. `state?(:CREATED)`
-        matches? field, args[0]
-      elsif args.length == 0
-        # this is a boolean query, e.g. `approved?`
-        get field
+      field = message.class.descriptor.lookup(name[0, name.length - 1])
+      raise NoMethodError if !field || !self.class.matchable?(field)
+      if field.type == :enum
+        raise ArgumentError unless args.length == 1
+        return matches?(field, args[0])
+      elsif field.type == :bool ||
+        (field.type == :message && field.subtype.name == 'google.protobuf.BoolValue')
       else
-        raise ArgumentError
+        raise NoMethodError
       end
     end
 
-    def method_missing_setter(name, *args)
-      field = message.class.descriptor.detect{|field| :"#{field.name}=" == name}
-      if field
-        raise ArgumentError unless args.length == 1
-        attributes = {}.tap { |hash| hash[field.name] = args[0] }
-        assign_attributes attributes
-        return args[0] # return the input value (to match ActiveRecord behavior)
-      end
+    def method_missing_set(name, *args)
+      raise ArgumentError unless args.length == 1
+      field = message.class.descriptor.lookup(name[0, name.length - 1])
+      raise(NoMethodError.new) unless field
+      set(field, args[0])
     end
   end
 end

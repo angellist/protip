@@ -404,6 +404,22 @@ module Protip::WrapperTest # namespace for internal constants
       end
     end
 
+    describe 'attribute reader' do # generated via method_missing?
+      it 'returns the underlying assigned value for oneof fields' do
+        wrapper.oneof_string1 = 'foo'
+        assert_equal 'foo', wrapper.oneof_group
+        wrapper.oneof_string2 = 'bar'
+        assert_equal 'bar', wrapper.oneof_group
+        wrapper.oneof_string2 = 'bar'
+        wrapper.oneof_string1 = 'foo'
+        assert_equal 'foo', wrapper.oneof_group
+      end
+
+      it 'returns nil for oneof fields that have not been set' do
+        assert_nil wrapper.oneof_group
+      end
+    end
+
     describe 'attribute writer' do # generated via method_missing?
 
       before do
@@ -429,8 +445,8 @@ module Protip::WrapperTest # namespace for internal constants
         assert_equal inner_message_class.new(value: 30), wrapper.message.inner
       end
 
-      it 'removes message fields when assigning nil' do
-        converter.expects(:convertible?).at_least_once.with(inner_message_class).returns(false)
+      it 'removes message fields when assigning nil, without checking with the converter' do
+        converter.expects(:convertible?).never
         converter.expects(:to_message).never
 
         wrapper.inner = nil
@@ -446,7 +462,6 @@ module Protip::WrapperTest # namespace for internal constants
       end
 
       it 'passes through messages without checking whether they are convertible' do
-        converter.expects(:convertible?).once.returns(true)
         message = inner_message_class.new(value: 50)
 
         converter.expects(:convertible?).never
