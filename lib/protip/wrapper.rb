@@ -115,17 +115,11 @@ module Protip
         field = message.class.descriptor.lookup(field_name.to_s) ||
           (raise ArgumentError.new("Unrecognized field: #{field_name}"))
 
-        # For inconvertible nested messages, the value should be either a hash or a message
-        if field.type == :message && !converter.convertible?(field.subtype.msgclass)
-          if value.is_a?(field.subtype.msgclass) # If a message, set it directly
-            set(field, value)
-          elsif value.is_a?(Hash) # If a hash, pass it through to the nested message
-            wrapper = get(field) || build(field.name) # Create the field if it doesn't already exist
-            wrapper.assign_attributes value
-          else # If value is a simple type (e.g. nil), set the value directly
-            set(field, value)
-          end
-        # Otherwise, if the field is a convertible message or a simple type, we set the value directly
+        # For inconvertible nested messages, we allow a hash to be passed in with nested attributes
+        if field.type == :message && !converter.convertible?(field.subtype.msgclass) && value.is_a?(Hash)
+          wrapper = get(field) || build(field.name) # Create the field if it doesn't already exist
+          wrapper.assign_attributes value
+        # Otherwise, if the field is a message (convertible or not) or a simple type, we set the value directly
         else
           set(field, value)
         end
@@ -224,7 +218,7 @@ module Protip
         elsif nested_resources.has_key?(field.name.to_sym)
           value.message
         else
-          raise ArgumentError.new "Cannot convert from Ruby object: \"#{field}\""
+          raise ArgumentError.new "Cannot convert from Ruby object: \"#{field.name}\""
         end
       elsif field.type == :enum
         value.is_a?(Fixnum) ? value : value.to_sym

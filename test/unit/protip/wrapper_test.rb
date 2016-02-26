@@ -255,7 +255,7 @@ module Protip::WrapperTest # namespace for internal constants
           wrapper.assign_attributes inner: {value: 50, note: 'noted'}
         end
 
-        it "sets message fields to nil when they're assigned nil" do
+        it 'sets message fields to nil when they\'re assigned nil' do
           wrapped_message.inner = inner_message_class.new(value: 60)
           assert wrapped_message.inner
           wrapper.assign_attributes inner: nil
