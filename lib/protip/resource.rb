@@ -132,12 +132,12 @@ module Protip
           end
 
           define_method "#{field.name}=" do |new_value|
-            old_wrapped_value = @wrapper.send(field.name)
+            old_value = self.message[field.name] # Only compare the raw values
             @wrapper.send("#{field.name}=", new_value)
-            new_wrapped_value = @wrapper.send(field.name)
+            new_value = self.message[field.name]
 
-            # needed for ActiveModel::Dirty
-            send("#{field.name}_will_change!") if new_wrapped_value != old_wrapped_value
+            # Need to check that types are the same first, otherwise protobuf gets mad comparing messages -> non-messages
+            send("#{field.name}_will_change!") unless new_value.class == old_value.class && new_value == old_value
           end
 
           # needed for ActiveModel::Dirty
