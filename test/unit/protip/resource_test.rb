@@ -515,8 +515,96 @@ module Protip::ResourceTest # Namespace for internal constants
           attrs = {id: 2}
           assert_equal resource_message_class.new(attrs), resource_class.new(attrs).message
         end
+
+        it 'allows nested attributes to be given' do
+          attrs = {
+            nested_message: {
+              number: 3
+            }
+          }
+          assert_equal nested_message_class.new(number: 3), resource_class.new(attrs).message.nested_message
+        end
       end
     end
+
+    # Shared behavior for direct setters and #assign_attributes. The setter object must be able to be
+    # initialized as +setter_class.new(resource)+, and must respond to +setter.set({field => value, field2 => value2})+
+    # by performing the appropriate operation (e.g. +.field=+ or +.assign_attributes+).
+    def self.describe_dirty_attributes_setter(setter_class)
+
+      describe 'dirty attributes' do
+        let :converter do
+          Class.new do
+            include Protip::Converter
+          end.new
+        end
+
+        let :resource do
+          resource_class.new resource_message_class.new({
+                                                          string: 'foo',
+                                                          nested_message: nested_message_class.new(number: 32)
+                                                        })
+        end
+
+        let :setter do
+          setter_class.new(resource)
+        end
+
+        before do
+          resource_class.converter = converter
+          raise 'sanity check failed' if resource.changed? || resource.string_changed? || resource.nested_message_changed?
+        end
+
+        it 'recognizes changes in scalar values' do
+          setter.set string: 'bar'
+          assert resource.changed?, 'resource was not marked as changed'
+          assert resource.string_changed?, 'field was not marked as changed'
+        end
+
+        it 'recognizes when scalar values do not change' do
+          setter.set string: 'foo'
+          refute resource.changed?, 'resource was marked as changed'
+          refute resource.string_changed?, 'field was marked as changed'
+        end
+
+        describe '(message attributes)' do
+          before do
+            converter.stubs(:convertible?).with(nested_message_class).returns(true)
+            converter.stubs(:to_message).with(42, nested_message_class).returns(nested_message_class.new(number: 52))
+            converter.stubs(:to_object).with(nested_message_class.new(number: 52)).returns(42)
+            converter.stubs(:to_object).with(nested_message_class.new(number: 62)).returns(72)
+          end
+          it 'marks convertible messages as changed if they are changed as Ruby values' do
+            setter.set nested_message: 42
+            assert resource.changed?, 'resource was not marked as changed'
+            assert resource.nested_message_changed?, 'field was not marked as changed'
+          end
+          it 'marks sub-messages as changed if they are changed as messages' do
+            setter.set nested_message: nested_message_class.new(number: 62)
+            assert resource.changed?, 'resource was not marked as changed'
+            assert resource.nested_message_changed?, 'field was not marked as changed'
+          end
+          it 'marks sub-messages as changed when they are nullified' do
+            setter.set nested_message: nil
+            assert resource.changed?, 'resource was not marked as changed'
+            assert resource.nested_message_changed?, 'field was not marked as changed'
+          end
+          it 'recognizes when convertible messages are not changed when set as Ruby values' do
+            resource.message.nested_message.number = 52
+            raise 'sanity check failed' if resource.changed? || resource.nested_message_changed?
+            setter.set nested_message: 42
+            refute resource.changed?, 'resource was marked as changed'
+            refute resource.string_changed?, 'field was marked as changed'
+          end
+          it 'recognizes when sub-messages are not changed when set as messages' do
+            setter.set nested_message: nested_message_class.new(number: 32)
+            refute resource.changed?, 'resource was marked as changed'
+            refute resource.string_changed?, 'field was marked as changed'
+          end
+        end
+      end
+    end
+
 
     describe 'attribute writer' do
       before do
@@ -532,24 +620,11 @@ module Protip::ResourceTest # Namespace for internal constants
         resource.string = test_string
       end
 
-      it 'marks the resource and attribute as changed if the value is changed' do
-        resource = resource_class.new string: 'original'
-        resource.string = 'new'
-        assert resource.changed?, 'resource should be marked as changed'
-        assert resource.string_changed?, 'string field should be marked as changed'
+      setter_class = Class.new do
+        def initialize(resource) ; @resource = resource ; end
+        def set(attributes) ; attributes.each{|attribute, value| @resource.public_send(:"#{attribute}=", value)} ; end
       end
-
-      it 'does not mark the resource and attribute as changed if the value is not changed' do
-        resource = resource_class.new string: 'original'
-        resource.send :changes_applied # clear the changes
-        # establish that the changes were cleared
-        assert !resource.changed?, 'resource should be not marked as changed'
-        assert !resource.string_changed?, 'string field should not be marked as changed'
-
-        resource.string = 'original'
-        assert !resource.changed?, 'resource should be not marked as changed'
-        assert !resource.string_changed?, 'string field should not be marked as changed'
-      end
+      describe_dirty_attributes_setter(setter_class)
     end
 
     describe '#assign_attributes' do
@@ -559,15 +634,55 @@ module Protip::ResourceTest # Namespace for internal constants
         end
       end
 
-      it 'calls the attribute writer for each attribute' do
-        resource = resource_class.new
-        test_string = 'whodunnit'
-        resource.expects(:string=).with(test_string)
-        resource.assign_attributes(string: test_string)
+      let :resource do
+        resource_class.new
+      end
+
+      it 'delegates to #assign_attributes on the wrapper' do
+        # Instantiate the resource before setting the expectation, since assign_attributes is allowed to be
+        # called during #initialize as well
+        resource
+
+        Protip::Wrapper.any_instance.expects(:assign_attributes).with(string: 'foo')
+        resource.assign_attributes string: 'foo'
+      end
+
+      setter_class = Class.new do
+        def initialize(resource) ; @resource = resource ; end
+        def set(attributes) ; @resource.assign_attributes attributes ; end
+      end
+      describe_dirty_attributes_setter setter_class
+      describe 'dirty attributes (nested hashes)' do
+
+        it 'marks nested hashes as changed if they set a new field' do
+          resource.assign_attributes nested_message: {number: 52}
+          assert resource.changed?, 'resource was not marked as changed'
+          assert resource.nested_message_changed?, 'field was not marked as changed'
+        end
+
+        describe '(when a nested message has an initial value)' do
+          before do
+            resource.nested_message = nested_message_class.new(number: 32)
+            resource.send(:changes_applied) # Clear the list of changes
+            # Sanity check
+            raise 'unexpected' if resource.changed? || resource.string_changed? || resource.nested_message_changed?
+          end
+
+          it 'marks nested hashes as changed if they change a field' do
+            resource.assign_attributes nested_message: {number: 42}
+            assert resource.changed?, 'resource was not marked as changed'
+            assert resource.nested_message_changed?, 'field was not marked as changed'
+          end
+
+          it 'does not mark nested hashes as changed if they do not change the underlying message' do
+            resource.assign_attributes nested_message: {number: 32}
+            refute resource.changed?, 'resource was marked as changed'
+            refute resource.nested_message_changed?, 'field was marked as changed'
+          end
+        end
       end
 
       it 'returns nil' do
-        resource = resource_class.new
         assert_nil resource.assign_attributes(string: 'asdf')
       end
     end

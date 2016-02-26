@@ -136,7 +136,8 @@ module Protip
             @wrapper.send("#{field.name}=", new_value)
             new_value = self.message[field.name]
 
-            # Need to check that types are the same first, otherwise protobuf gets mad comparing messages -> non-messages
+            # Need to check that types are the same first, otherwise protobuf gets mad comparing
+            # messages with non-messages
             send("#{field.name}_will_change!") unless new_value.class == old_value.class && new_value == old_value
           end
 
@@ -263,8 +264,23 @@ module Protip
     end
 
     def assign_attributes(attributes)
-      # the resource needs to call its own setters so that fields get marked as dirty
-      attributes.each { |field_name, value| send("#{field_name}=", value) }
+      old_attributes = {}
+      descriptor = message.class.descriptor
+      attributes.keys.each do |key|
+        field = descriptor.lookup(key.to_s)
+        value = message[key.to_s]
+        # If the current value is a message, we need to clone it to get a reasonable comparison later,
+        # since we might just assign attributes to the current instance of the message directly
+        old_attributes[key] = field && field.type == :message && value ? value.clone : value
+      end
+      @wrapper.assign_attributes attributes
+      attributes.keys.each do |key|
+        old_value = old_attributes[key]
+        new_value = message[key.to_s]
+        unless old_value.class == new_value.class && old_value == new_value
+          send "#{key}_will_change!"
+        end
+      end
       nil # return nil to match ActiveRecord behavior
     end
 
