@@ -23,7 +23,7 @@ module Protip::WrapperTest # namespace for internal constants
           optional :value, :int64, 1
           optional :note, :string, 2
         end
-        add_message "google.protobuf.BoolValue" do
+        add_message 'google.protobuf.BoolValue' do
           optional :value, :bool, 1
         end
 
@@ -42,8 +42,8 @@ module Protip::WrapperTest # namespace for internal constants
           optional :boolean, :bool, 8
           repeated :booleans, :bool, 9
 
-          optional :google_bool_value, :message, 10, "google.protobuf.BoolValue"
-          repeated :google_bool_values, :message, 11, "google.protobuf.BoolValue"
+          optional :google_bool_value, :message, 10, 'google.protobuf.BoolValue'
+          repeated :google_bool_values, :message, 11, 'google.protobuf.BoolValue'
 
           oneof :oneof_group do
             optional :oneof_string1, :string, 12
