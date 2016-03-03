@@ -18,7 +18,7 @@ module Protip::ResourceTest # Namespace for internal constants
         add_message 'nested_message' do
           optional :number, :int64, 1
         end
-        add_message "google.protobuf.BoolValue" do
+        add_message 'google.protobuf.BoolValue' do
           optional :value, :bool, 1
         end
         add_message 'resource_message' do
@@ -30,8 +30,8 @@ module Protip::ResourceTest # Namespace for internal constants
           repeated :numbers, :enum, 6, 'number'
           optional :boolean, :bool, 8
           repeated :booleans, :bool, 9
-          optional :google_bool_value, :message, 10, "google.protobuf.BoolValue"
-          repeated :google_bool_values, :message, 11, "google.protobuf.BoolValue"
+          optional :google_bool_value, :message, 10, 'google.protobuf.BoolValue'
+          repeated :google_bool_values, :message, 11, 'google.protobuf.BoolValue'
 
           oneof :oneof_group do
             optional :oneof_string1, :string, 12
@@ -177,13 +177,14 @@ module Protip::ResourceTest # Namespace for internal constants
           end
 
           it 'defines query methods for the booleans on its message' do
+            resource.boolean = true
             assert_respond_to resource, :boolean?
-            refute resource.boolean?
+            assert_equal true, resource.boolean?
           end
 
           it 'defines query methods for the google.protobuf.BoolValues on its message' do
             assert_respond_to resource, :google_bool_value?
-            refute resource.google_bool_value?
+            assert_equal false, resource.google_bool_value?
           end
 
           it 'does not define query methods for repeated enums' do

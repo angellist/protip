@@ -156,14 +156,17 @@ module Protip
     end
 
     class << self
+      # Whether the given field returns boolean values. When true, wrappers will respond to +field_name?+
+      # query methods.
+      def boolean?(field)
+        field.type == :bool || (field.type == :message && field.subtype.name == 'google.protobuf.BoolValue')
+      end
+
       # Semi-private check for whether a field should have an associated query method (e.g. +field_name?+).
       # @return [Boolean] Whether the field should have an associated query method on wrappers.
       def matchable?(field)
         return false if field.label == :repeated
-
-        field.type == :enum ||
-            field.type == :bool ||
-            field.type == :message && (field.subtype.name == "google.protobuf.BoolValue")
+        field.type == :enum || boolean?(field)
       end
     end
 
@@ -258,8 +261,8 @@ module Protip
       if field.type == :enum
         raise ArgumentError unless args.length == 1
         return matches?(field, args[0])
-      elsif field.type == :bool ||
-        (field.type == :message && field.subtype.name == 'google.protobuf.BoolValue')
+      elsif self.class.boolean?(field)
+        !!get(field)
       else
         raise NoMethodError
       end
