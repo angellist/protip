@@ -177,14 +177,14 @@ module Protip::ResourceTest # Namespace for internal constants
           end
 
           it 'defines query methods for the booleans on its message' do
+            resource.boolean = true
             assert_respond_to resource, :boolean?
-            assert_equal false, resource.boolean?
+            assert_equal true, resource.boolean?
           end
 
           it 'defines query methods for the google.protobuf.BoolValues on its message' do
-            # TODO: weird that these query methods can return nil in the nested-message case
             assert_respond_to resource, :google_bool_value?
-            assert_nil resource.google_bool_value?
+            assert_equal false, resource.google_bool_value?
           end
 
           it 'does not define query methods for repeated enums' do

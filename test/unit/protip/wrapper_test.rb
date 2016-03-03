@@ -105,6 +105,12 @@ module Protip::WrapperTest # namespace for internal constants
         assert_respond_to wrapper, :boolean?, 'bool field should respond to query'
         assert_respond_to wrapper, :google_bool_value?, 'google.protobuf.BoolValue field should respond to query'
       end
+      it 'allows .boolean? to be overwritten to add additional queryable fields' do
+        wrapper.class.stubs(:boolean?).returns(true)
+        assert_respond_to wrapper, :string?
+        wrapper.class.stubs(:boolean?).returns(false)
+        refute_respond_to wrapper, :string?
+      end
       it 'does not add queries for repeated fields' do
         refute_respond_to wrapper, :numbers?, 'repeated enum field should not respond to query'
         refute_respond_to wrapper, :booleans?, 'repeated bool field should not respond to query'
@@ -519,6 +525,21 @@ module Protip::WrapperTest # namespace for internal constants
       it 'returns the input value' do
         input_value = 'str'
         assert_equal input_value, wrapper.send(:string=, input_value)
+      end
+    end
+
+    describe 'boolean query methods' do
+      it 'returns the boolean-ized version of the field' do
+        wrapper.class.stubs(:boolean?).returns(true)
+
+        # Sanity checks
+        raise 'unexpected string' unless wrapper.string == 'test'
+        raise 'unexpected boolean' unless wrapper.boolean == false
+        raise 'unexpected google_bool_value' unless wrapper.google_bool_value == nil
+
+        assert_equal true, wrapper.string?, 'did not convert string to boolean'
+        assert_equal false, wrapper.boolean?, 'did not pass through boolean value'
+        assert_equal false, wrapper.google_bool_value?, 'did not convert nil to boolean'
       end
     end
 

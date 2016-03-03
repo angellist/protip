@@ -262,7 +262,7 @@ module Protip
         raise ArgumentError unless args.length == 1
         return matches?(field, args[0])
       elsif self.class.boolean?(field)
-        get field
+        !!get(field)
       else
         raise NoMethodError
       end
