@@ -266,17 +266,18 @@ module Protip
     def assign_attributes(attributes)
       old_attributes = {}
       descriptor = message.class.descriptor
-      attributes.keys.each do |key|
-        field = descriptor.lookup(key.to_s)
-        value = message[key.to_s]
+      keys = attributes.keys.map(&:to_s)
+      keys.each do |key|
+        field = descriptor.lookup(key)
+        value = message[key]
         # If the current value is a message, we need to clone it to get a reasonable comparison later,
         # since we might just assign attributes to the current instance of the message directly
         old_attributes[key] = field && field.type == :message && value ? value.clone : value
       end
       @wrapper.assign_attributes attributes
-      attributes.keys.each do |key|
+      keys.each do |key|
         old_value = old_attributes[key]
-        new_value = message[key.to_s]
+        new_value = message[key]
         unless old_value.class == new_value.class && old_value == new_value
           send "#{key}_will_change!"
         end
@@ -327,12 +328,10 @@ module Protip
     end
 
     private
-
-    # needed for ActiveModel::Dirty
+    # needed for ActiveModel::Dirty in earlier ActiveModel versions
     def changes_applied
       @previously_changed = changes
       @changed_attributes.clear
     end
-
   end
 end
