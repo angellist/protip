@@ -7,6 +7,7 @@ require 'protip/converter'
 require 'protip/messages/currency'
 require 'protip/messages/money'
 require 'protip/messages/range'
+require 'protip/messages/repeated'
 require 'protip/messages/types'
 require 'google/protobuf'
 module Protip
@@ -57,11 +58,17 @@ module Protip
     }
 
     ## Standard wrappers
-    %w(Int64 Int32 UInt64 UInt32 Double Float String Bytes).map{|type| "google.protobuf.#{type}Value"}.each do |name|
-      @conversions[name] = {
+    %w(Int64 Int32 UInt64 UInt32 Double Float String Bytes).each do |type|
+      @conversions["google.protobuf.#{type}Value"] = {
         to_object: ->(message) { message.value },
         to_message: lambda do |value, message_class|
           message_class.new value: value
+        end
+      }
+      @conversions["protip.messages.Repeated#{type}"] = {
+        to_object: ->(message) { message.values.to_a.freeze },
+        to_message: lambda do |value, message_class|
+          message_class.new values: (value.is_a?(Enumerable) ? value : [value])
         end
       }
     end
@@ -71,6 +78,14 @@ module Protip
       to_message: lambda do |value, message_class|
         message_class.new value: value_to_boolean(value)
       end
+    }
+
+    conversions['protip.messages.RepeatedBool'] = {
+      to_object: ->(message) { message.values.to_a.freeze },
+      to_message: lambda do |value, message_class|
+        message_class.new values: (value.is_a?(Enumerable) ? value : [value]).map{|v| value_to_boolean(v)}
+      end
+
     }
 
     ## ActiveSupport objects

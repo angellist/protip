@@ -17,6 +17,15 @@ describe Protip::StandardConverter do
     ]
   end
 
+  let(:repeated_integer_types) do
+    [
+      Protip::Messages::RepeatedInt64,
+      Protip::Messages::RepeatedInt32,
+      Protip::Messages::RepeatedUInt64,
+      Protip::Messages::RepeatedUInt32,
+    ]
+  end
+
   let(:float_types) do
     [
       Google::Protobuf::FloatValue,
@@ -24,16 +33,35 @@ describe Protip::StandardConverter do
     ]
   end
 
+  let(:repeated_float_types) do
+    [
+      Protip::Messages::RepeatedFloat,
+      Protip::Messages::RepeatedDouble,
+    ]
+  end
+
   let(:bool_types) do
     [Google::Protobuf::BoolValue]
+  end
+
+  let(:repeated_bool_types) do
+    [Protip::Messages::RepeatedBool]
   end
 
   let(:string_types) do
     [Google::Protobuf::StringValue]
   end
 
+  let(:repeated_string_types) do
+    [Protip::Messages::RepeatedString]
+  end
+
   let(:bytes_types) do
     [Google::Protobuf::BytesValue]
+  end
+
+  let(:repeated_bytes_types) do
+    [Protip::Messages::RepeatedBytes]
   end
 
   let(:protip_types) do
@@ -45,9 +73,16 @@ describe Protip::StandardConverter do
     ]
   end
 
+  let(:integer_value) { 6 }
+  let(:float_value) { 5.5 }
+  let(:bool_value) { true }
+  let(:string_value) { 'asdf' }
+  let(:bytes_value) { Base64.decode64("U2VuZCByZWluZm9yY2VtZW50cw==\n") }
+
   describe '#convertible?' do
     it 'converts all standard types' do
-      (integer_types + float_types + string_types + bool_types + protip_types).each do |message_class|
+      (integer_types + float_types + string_types + bool_types + protip_types + repeated_integer_types +
+        repeated_float_types + repeated_string_types + repeated_bool_types).each do |message_class|
         assert converter.convertible?(message_class), "expected type #{message_class.descriptor.name} not convertible"
       end
     end
@@ -62,14 +97,33 @@ describe Protip::StandardConverter do
   describe '#to_object' do
     it 'converts wrapper types' do
       {
-        6                                                 => integer_types,
-        5.5                                               => float_types,
-        false                                             => bool_types,
-        'asdf'                                            => string_types,
-        Base64.decode64("U2VuZCByZWluZm9yY2VtZW50cw==\n") => bytes_types,
+        integer_value => integer_types,
+        float_value   => float_types,
+        bool_value    => bool_types,
+        string_value  => string_types,
+        bytes_value   => bytes_types,
       }.each do |value, message_types|
         message_types.each do |message_class|
           assert_equal value, converter.to_object(message_class.new value: value)
+        end
+      end
+    end
+
+    it 'converts repeated types to an immutable array' do
+      {
+        integer_value => repeated_integer_types,
+        float_value   => repeated_float_types,
+        bool_value    => repeated_bool_types,
+        string_value  => repeated_string_types,
+        bytes_value   => repeated_bytes_types,
+      }.each do |value, message_types|
+        message_types.each do |message_class|
+          result = converter.to_object(message_class.new values: [value])
+          assert_equal [value], result
+          exception = assert_raises RuntimeError do
+            result << value
+          end
+          assert_equal 'can\'t modify frozen Array', exception.message
         end
       end
     end
@@ -114,14 +168,42 @@ describe Protip::StandardConverter do
   describe '#to_message' do
     it 'converts wrapper types' do
       {
-        6                                                 => integer_types,
-        5.5                                               => float_types,
-        false                                             => bool_types,
-        'asdf'                                            => string_types,
-        Base64.decode64("U2VuZCByZWluZm9yY2VtZW50cw==\n") => bytes_types,
+        integer_value => integer_types,
+        float_value   => float_types,
+        bool_value    => bool_types,
+        string_value  => string_types,
+        bytes_value   => bytes_types,
       }.each do |value, message_types|
         message_types.each do |message_class|
           assert_equal message_class.new(value: value), converter.to_message(value, message_class)
+        end
+      end
+    end
+
+    it 'converts repeated types when set with a scalar value' do
+      {
+        integer_value => repeated_integer_types,
+        float_value   => repeated_float_types,
+        bool_value    => repeated_bool_types,
+        string_value  => repeated_string_types,
+        bytes_value   => repeated_bytes_types,
+      }.each do |value, message_types|
+        message_types.each do |message_class|
+          assert_equal message_class.new(values: [value]), converter.to_message(value, message_class)
+        end
+      end
+    end
+
+    it 'converts repeated types when set with an enumerable value' do
+      {
+        integer_value => repeated_integer_types,
+        float_value   => repeated_float_types,
+        bool_value    => repeated_bool_types,
+        string_value  => repeated_string_types,
+        bytes_value   => repeated_bytes_types,
+      }.each do |value, message_types|
+        message_types.each do |message_class|
+          assert_equal message_class.new(values: [value, value]), converter.to_message([value, value], message_class)
         end
       end
     end
