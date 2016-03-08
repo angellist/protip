@@ -7,7 +7,7 @@ require 'protip/converter'
 require 'protip/messages/currency'
 require 'protip/messages/money'
 require 'protip/messages/range'
-require 'protip/messages/repeated'
+require 'protip/messages/repeated_wrappers'
 require 'protip/messages/types'
 require 'google/protobuf'
 module Protip
