@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package protip.messages;
+
+message RepeatedDouble {
+  repeated double values = 1;
+}
+
+message RepeatedFloat {
+  repeated float values = 1;
+}
+
+message RepeatedInt64 {
+  repeated int64 values = 1;
+}
+
+message RepeatedUInt64 {
+  repeated uint64 values = 1;
+}
+
+message RepeatedInt32 {
+  repeated int32 values = 1;
+}
+
+message RepeatedUInt32 {
+  repeated uint32 values = 1;
+}
+
+message RepeatedBool {
+  repeated bool values = 1;
+}
+
+message RepeatedString {
+  repeated string values = 1;
+}
+
+message RepeatedBytes {
+  repeated bytes values = 1;
+}
