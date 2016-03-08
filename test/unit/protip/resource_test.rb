@@ -63,6 +63,7 @@ module Protip::ResourceTest # Namespace for internal constants
         pool.lookup(name).msgclass
       end
     end
+    let(:nested_message_field) { resource_message_class.descriptor.lookup('nested_message') }
     # Stubbed API client
     let :client do
       mock.responds_like_instance_of(Class.new { include Protip::Client })
@@ -158,8 +159,8 @@ module Protip::ResourceTest # Namespace for internal constants
 
         it 'converts message types to and from their Ruby values when the converter allows' do
           converter.expects(:convertible?).at_least_once.with(nested_message_class).returns(true)
-          converter.expects(:to_message).once.with(6, nested_message_class).returns(nested_message_class.new number: 100)
-          converter.expects(:to_object).at_least_once.with(nested_message_class.new number: 100).returns 'intern'
+          converter.expects(:to_message).once.with(6, nested_message_class, nested_message_field).returns(nested_message_class.new number: 100)
+          converter.expects(:to_object).at_least_once.with(nested_message_class.new(number: 100), nested_message_field).returns 'intern'
 
           resource = resource_class.new
           resource.nested_message = 6
@@ -243,8 +244,8 @@ module Protip::ResourceTest # Namespace for internal constants
       before do
         # Sanity check - the user should specify all these variables in "let" statements
         # http_method, path, query_class, and response specify the expected call to the client
-        # nested_message_field specifies the field on the query class that may or may not be convertible, and should
-        #   refer to a submessage field of type nested_message_class
+        # nested_message_field_name specifies the field on the query class that may or may not be convertible, and
+        #   should refer to a submessage field of type nested_message_class
         # invoke_method! should call the desired method, assuming that +parameters+ contains the query parameters to
         #   pass in (e.g. `resource_class.all(parameters)` or `resource_class.find('id', parameters)`)
         %i(
@@ -252,7 +253,7 @@ module Protip::ResourceTest # Namespace for internal constants
           path
           query_class
           response
-          nested_message_field
+          nested_message_field_name
           invoke_method!
         ).each do |name|
           raise "Must define #{name} before invoking `it_converts_query_parameters`" unless respond_to?(name)
@@ -262,7 +263,7 @@ module Protip::ResourceTest # Namespace for internal constants
         client.expects(:request)
           .once
           .with(method: http_method, path: path,
-            message: query_class.new(:"#{nested_message_field}" => nested_message_class.new(number: 43)),
+            message: query_class.new(:"#{nested_message_field_name}" => nested_message_class.new(number: 43)),
             response_type: (nil == response ? nil : response.class),
           ).returns(response)
       end
@@ -272,10 +273,12 @@ module Protip::ResourceTest # Namespace for internal constants
       describe 'with a convertible message' do
         before do
           resource_class.converter.stubs(:convertible?).with(nested_message_class).returns(true)
-          resource_class.converter.stubs(:to_message).with(42, nested_message_class).returns(nested_message_class.new(number: 43))
+          resource_class.converter.stubs(:to_message)
+            .with(42, nested_message_class, query_class.descriptor.lookup(nested_message_field_name.to_s))
+            .returns(nested_message_class.new(number: 43))
         end
 
-        let(:parameters) { {"#{nested_message_field}" => 42} }
+        let(:parameters) { {"#{nested_message_field_name}" => 42} }
         it 'converts query parameters' do
           invoke_method!
         end
@@ -288,14 +291,14 @@ module Protip::ResourceTest # Namespace for internal constants
         end
 
         describe 'with a hash' do
-          let(:parameters) { {"#{nested_message_field}" => {number: 43}} }
+          let(:parameters) { {"#{nested_message_field_name}" => {number: 43}} }
           it 'allows a hash to be provided for the nested message' do
             invoke_method!
           end
         end
 
         describe 'with a submessage' do
-          let(:parameters) { {"#{nested_message_field}" => nested_message_class.new(number: 43)} }
+          let(:parameters) { {"#{nested_message_field_name}" => nested_message_class.new(number: 43)} }
           it 'allows a submessage to be provided directly' do
             invoke_method!
           end
@@ -398,7 +401,7 @@ module Protip::ResourceTest # Namespace for internal constants
           let(:http_method) { Net::HTTP::Get }
           let(:path) { 'base_path' }
           let(:query_class) { resource_query_class }
-          let(:nested_message_field) { :nested_message }
+          let(:nested_message_field_name) { :nested_message }
           let(:invoke_method!) { resource_class.all(parameters) }
           it_converts_query_parameters
         end
@@ -482,7 +485,7 @@ module Protip::ResourceTest # Namespace for internal constants
           let(:http_method) { Net::HTTP::Get }
           let(:path) { 'base_path/5' }
           let(:query_class) { resource_query_class }
-          let(:nested_message_field) { :nested_message }
+          let(:nested_message_field_name) { :nested_message }
           let(:invoke_method!) { resource_class.find 5, parameters }
           it_converts_query_parameters
         end
@@ -571,9 +574,9 @@ module Protip::ResourceTest # Namespace for internal constants
         describe '(message attributes)' do
           before do
             converter.stubs(:convertible?).with(nested_message_class).returns(true)
-            converter.stubs(:to_message).with(42, nested_message_class).returns(nested_message_class.new(number: 52))
-            converter.stubs(:to_object).with(nested_message_class.new(number: 52)).returns(42)
-            converter.stubs(:to_object).with(nested_message_class.new(number: 62)).returns(72)
+            converter.stubs(:to_message).with(42, nested_message_class, nested_message_field).returns(nested_message_class.new(number: 52))
+            converter.stubs(:to_object).with(nested_message_class.new(number: 52), nested_message_field).returns(42)
+            converter.stubs(:to_object).with(nested_message_class.new(number: 62), nested_message_field).returns(72)
           end
           it 'marks convertible messages as changed if they are changed as Ruby values' do
             setter.set nested_message: 42
@@ -937,7 +940,7 @@ module Protip::ResourceTest # Namespace for internal constants
           let(:http_method) { Net::HTTP::Post }
           let(:path) { path }
           let(:query_class) { action_query_class }
-          let(:nested_message_field) { :nested_message }
+          let(:nested_message_field_name) { :nested_message }
           let(:invoke_method!) { target.action(parameters) }
           it_converts_query_parameters
         end

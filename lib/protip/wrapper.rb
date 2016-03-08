@@ -187,7 +187,7 @@ module Protip
         if nil == value
           nil
         elsif converter.convertible?(field.subtype.msgclass)
-          converter.to_object value
+          converter.to_object value, field
         elsif nested_resources.has_key?(field_name_sym)
           resource_klass = nested_resources[field_name_sym]
           resource_klass.new value
@@ -217,7 +217,7 @@ module Protip
         elsif value.is_a?(field.subtype.msgclass)
           value
         elsif converter.convertible?(field.subtype.msgclass)
-          converter.to_message value, field.subtype.msgclass
+          converter.to_message value, field.subtype.msgclass, field
         elsif nested_resources.has_key?(field.name.to_sym)
           value.message
         else
