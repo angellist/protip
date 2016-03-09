@@ -4,8 +4,23 @@ require 'money'
 require 'google/protobuf/wrappers'
 require 'protip/messages/active_support/time_with_zone'
 require 'protip/standard_converter'
+require 'protip/messages/test'
 
 describe Protip::StandardConverter do
+  let :pool do
+    # See https://github.com/google/protobuf/blob/master/ruby/tests/generated_code.rb for
+    # examples of field types you can add here
+    pool = Google::Protobuf::DescriptorPool.new
+    pool.build do
+      add_enum 'number' do
+        value :ZERO, 0
+        value :ONE, 1
+      end
+    end
+    pool
+  end
+  let(:enum) { pool.lookup 'number' }
+
   let(:converter) { Protip::StandardConverter.new }
 
   let(:integer_types) do
@@ -165,6 +180,37 @@ describe Protip::StandardConverter do
       assert_equal 1451610000, time.to_i
       assert_equal '2015-12-31T17:00:00-08:00', time.iso8601
     end
+
+    describe 'enums' do
+      before do
+        ::Protip::StandardConverter.stubs(:enum_for_field).with(field).returns(enum)
+      end
+
+      # Make sure we mirror the behavior of an actual enum field on the message.
+      it 'converts enum values in range to symbols' do
+        message = ::Protip::Messages::EnumValue.new value: 1
+        assert_equal :ONE, converter.to_object(message, field)
+      end
+
+      it 'converts enum values out of range to integers' do
+        message = ::Protip::Messages::EnumValue.new value: 5
+        assert_equal 5, converter.to_object(message, field)
+      end
+
+      it 'converts repeated enum values in range to symbols' do
+        message = ::Protip::Messages::RepeatedEnum.new values: [0, 1]
+        assert_equal [:ZERO, :ONE], converter.to_object(message, field)
+      end
+
+      it 'converts repeated enum values out of range to integers' do
+        message = ::Protip::Messages::RepeatedEnum.new values: [3, 1, 5]
+        assert_equal [3, :ONE, 5], converter.to_object(message, field)
+      end
+    end
+  end
+
+  describe '.enum_for_field' do
+    # TODO pending https://github.com/google/protobuf/issues/1198
   end
 
   describe '#to_message' do
@@ -285,5 +331,100 @@ describe Protip::StandardConverter do
       assert_equal 'UTC', message.time_zone_name
 
     end
+
+    describe 'enums' do
+      before do
+        ::Protip::StandardConverter.stubs(:enum_for_field).with(field).returns(enum)
+      end
+      def convert(value)
+        converter.to_message value, message_class, field
+      end
+      %w(zero one two).each do |number| # values symbolizing as :ZERO, :ONE, :TWO
+        let number do
+          value = mock
+          value.stubs(:to_sym).returns(number.upcase.to_sym)
+          value
+        end
+      end
+
+      describe '::Protip::Messages::EnumValue' do
+        let(:message_class) { ::Protip::Messages::EnumValue }
+        # Ensure identical behavior to setting a standard enum field
+        it 'converts integers' do
+          assert_equal 1, convert(1).value, 'improper conversion of an in-range integer'
+          assert_equal 4, convert(4).value, 'improper conversion of an out-of-range integer'
+        end
+        it 'converts non-integers via to_sym' do
+          assert_equal 1, convert(one).value, 'improper conversion of non-integer value'
+        end
+        it 'throws an error when a non-existent symbol is given' do
+          assert_raises RangeError do
+            convert(two)
+          end
+        end
+      end
+
+      describe '::Protip::Messages::RepeatedEnum' do
+        let(:message_class) { ::Protip::Messages::RepeatedEnum }
+        it 'converts integers' do
+          assert_equal [1, 4], convert([1, 4]).values
+        end
+        it 'converts non-integers via to_sym' do
+          assert_equal [0, 2, 1], convert([zero, 2, one]).values
+        end
+        it 'throws an error when a non-existent symbol is given' do
+          assert_raises RangeError do
+            convert([0, two])
+          end
+        end
+        it 'allows assigning a scalar value' do
+          assert_equal [1], convert(one).values
+        end
+      end
+    end
   end
+
+  describe '(enums - functional)' do # Temp - test an actual compiled file to make sure our options hack is working
+    let(:wrapped_message) { Protip::Messages::EnumTest.new }
+    let(:wrapper) { Protip::Wrapper.new wrapped_message, converter }
+
+    let(:value_map) do
+      {
+        :ONE => :ONE,
+        1 => :ONE,
+        2 => 2,
+      }
+    end
+
+    it 'allows setting and getting a scalar field by Ruby value' do
+      value_map.each do |value, expected|
+        wrapper.enum = value
+        assert_equal expected, wrapper.enum
+      end
+      assert_raises RangeError do
+        wrapper.enum = :TWO
+      end
+    end
+    it 'allows setting and getting a scalar field by message' do
+      wrapper.enum = ::Protip::Messages::EnumValue.new(value: 1)
+      assert_equal :ONE, wrapper.enum
+    end
+
+    it 'allows setting and getting a repeated field by Ruby value' do
+      value_map.each do |value, expected|
+        wrapper.enums = [value]
+        assert_equal [expected], wrapper.enums
+      end
+      assert_raises RangeError do
+        wrapper.enums = [:TWO]
+      end
+    end
+    it 'allows setting and geting a repeated field by message' do
+      wrapper.enums = ::Protip::Messages::RepeatedEnum.new(values: [2])
+      assert_equal [2], wrapper.enums
+    end
+
+
+  end
+
 end

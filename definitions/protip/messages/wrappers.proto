@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "protip/extensions.proto";
+import public "protip/extensions.proto";
 
 package protip.messages;
 

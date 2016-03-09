@@ -9,6 +9,7 @@ require 'protip/messages/money'
 require 'protip/messages/range'
 require 'protip/messages/repeated_wrappers'
 require 'protip/messages/types'
+require 'protip/messages/wrappers'
 require 'google/protobuf'
 module Protip
   class StandardConverter
@@ -88,6 +89,39 @@ module Protip
 
     }
 
+    conversions['protip.messages.EnumValue'] = {
+      to_object: lambda do |message, field|
+        enum_for_field(field).lookup_value(message.value) || message.value
+      end,
+      to_message: lambda do |value, message_class, field|
+        enum_value = (value.is_a?(Fixnum) ? value : enum_for_field(field).lookup_name(value.to_sym))
+        if nil == enum_value
+          raise RangeError.new('Unknown symbol value for an EnumValue field.')
+        end
+        message_class.new(value: enum_value)
+      end
+    }
+
+    conversions['protip.messages.RepeatedEnum'] = {
+      to_object: lambda do |message, field|
+        enum = enum_for_field(field)
+        message.values.map{|v| enum.lookup_value(v) || v}
+      end,
+      to_message: lambda do |values, message_class, field|
+        enum = nil # Don't look this up unless we have to
+        (values = [values]) unless values.is_a?(Enumerable) # Convert to an array if a scalar was given
+        # Convert values in the same way we do for +protip.messages.EnumValue+
+        message_class.new values: (values.map do |value|
+          if value.is_a?(Fixnum)
+            value
+          else
+            enum ||= enum_for_field(field)
+            enum.lookup_name(value.to_sym) || (raise RangeError.new('Unknown symbol value for a RepeatedEnum field.'))
+          end
+        end)
+      end
+    }
+
     ## ActiveSupport objects
     conversions['protip.messages.ActiveSupport.TimeWithZone'] = {
       to_object: ->(message, field) {
@@ -129,6 +163,11 @@ module Protip
         # If we don't get a truthy/falsey value, use the original value (which should raise an
         # exception)
         value
+      end
+
+      private
+      def enum_for_field(field)
+        Google::Protobuf::DescriptorPool.generated_pool.lookup(field.instance_variable_get(:'@_protip_enum_value'))
       end
     end
   end
