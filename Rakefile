@@ -1,3 +1,4 @@
+load 'protip/tasks/compile.rake'
 require 'bundler/gem_tasks'
 require 'fileutils'
 require 'rake/testtask'
@@ -21,9 +22,7 @@ end
 desc 'Compile protobuf sources to Ruby classes.'
 task compile: :clean do
   ::Dir.glob('definitions/**/*.proto').each do |file|
-    command = "protoc -Idefinitions --ruby_out=lib #{file}"
-    puts command
-    system command
+    Rake::Task['protip:compile'].execute filename: file
   end
 end
 

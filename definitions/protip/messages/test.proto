@@ -1,0 +1,18 @@
+// Should be temporary - enables testing our hacky enum option handling with an actual compiled file.
+// Do not depend on anything in this file.
+
+syntax = "proto3";
+
+import "protip/messages/repeated_wrappers.proto";
+import "protip/messages/wrappers.proto";
+
+package protip.messages;
+
+message EnumTest {
+  enum Enum {
+    ZERO = 0;
+    ONE = 1;
+  }
+  protip.messages.EnumValue enum = 1 [(protip_enum) = "protip.messages.EnumTest.Enum"];
+  protip.messages.RepeatedEnum enums = 2 [(protip_enum) = "protip.messages.EnumTest.Enum"];
+}

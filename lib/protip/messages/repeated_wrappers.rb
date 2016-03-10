@@ -3,6 +3,7 @@
 
 require 'google/protobuf'
 
+require 'protip/extensions'
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "protip.messages.RepeatedDouble" do
     repeated :values, :double, 1
@@ -31,6 +32,9 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "protip.messages.RepeatedBytes" do
     repeated :values, :bytes, 1
   end
+  add_message "protip.messages.RepeatedEnum" do
+    repeated :values, :int32, 1
+  end
 end
 
 module Protip
@@ -44,5 +48,6 @@ module Protip
     RepeatedBool = Google::Protobuf::DescriptorPool.generated_pool.lookup("protip.messages.RepeatedBool").msgclass
     RepeatedString = Google::Protobuf::DescriptorPool.generated_pool.lookup("protip.messages.RepeatedString").msgclass
     RepeatedBytes = Google::Protobuf::DescriptorPool.generated_pool.lookup("protip.messages.RepeatedBytes").msgclass
+    RepeatedEnum = Google::Protobuf::DescriptorPool.generated_pool.lookup("protip.messages.RepeatedEnum").msgclass
   end
 end

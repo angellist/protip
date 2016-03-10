@@ -59,6 +59,7 @@ module Protip::WrapperTest # namespace for internal constants
         pool.lookup(name).msgclass
       end
     end
+    let (:inner_message_field) { message_class.descriptor.lookup('inner') }
 
     # Stubbed API client
     let :client do
@@ -209,7 +210,7 @@ module Protip::WrapperTest # namespace for internal constants
         end
 
         it 'converts scalar Ruby values to protobuf messages' do
-          converter.expects(:to_message).once.with(45, inner_message_class).returns(inner_message_class.new(value: 43))
+          converter.expects(:to_message).once.with(45, inner_message_class, inner_message_field).returns(inner_message_class.new(value: 43))
           wrapper.assign_attributes inner: 45
           assert_equal inner_message_class.new(value: 43), wrapped_message.inner
         end
@@ -329,7 +330,7 @@ module Protip::WrapperTest # namespace for internal constants
       describe 'with a nested convertible message' do
         before do
           converter.stubs(:convertible?).with(inner_message_class).returns true
-          [1, 2, 3].each{|i| converter.stubs(:to_object).with(inner_message_class.new(value: i)).returns(i)}
+          [1, 2, 3].each{|i| converter.stubs(:to_object).with(inner_message_class.new(value: i), anything).returns(i)}
         end
         it 'returns a hash with the nested message converted' do
           assert_equal 1, wrapper.to_h[:inner]
@@ -385,7 +386,7 @@ module Protip::WrapperTest # namespace for internal constants
 
       it 'converts convertible messages' do
         converter.expects(:convertible?).with(inner_message_class).once.returns(true)
-        converter.expects(:to_object).once.with(inner_message_class.new(value: 25)).returns 40
+        converter.expects(:to_object).once.with(inner_message_class.new(value: 25), inner_message_field).returns 40
         assert_equal 40, wrapper.inner
       end
 
@@ -445,7 +446,7 @@ module Protip::WrapperTest # namespace for internal constants
 
       it 'converts convertible messages' do
         converter.expects(:convertible?).at_least_once.with(inner_message_class).returns(true)
-        converter.expects(:to_message).with(40, inner_message_class).returns(inner_message_class.new(value: 30))
+        converter.expects(:to_message).with(40, inner_message_class, inner_message_field).returns(inner_message_class.new(value: 30))
 
         wrapper.inner = 40
         assert_equal inner_message_class.new(value: 30), wrapper.message.inner

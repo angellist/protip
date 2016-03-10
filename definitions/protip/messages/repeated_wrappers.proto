@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import public "protip/extensions.proto";
+
 package protip.messages;
 
 message RepeatedDouble {
@@ -36,4 +38,10 @@ message RepeatedString {
 
 message RepeatedBytes {
   repeated bytes values = 1;
+}
+
+// Should generally be used with the "protip_enum" option
+// for serialization to/from Ruby.
+message RepeatedEnum {
+  repeated int32 values = 1;
 }

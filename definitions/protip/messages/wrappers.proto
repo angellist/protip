@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+import public "protip/extensions.proto";
+
+package protip.messages;
+
+message EnumValue {
+  int32 value = 1;
+}
