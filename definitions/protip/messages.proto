@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+import public "protip/messages/array.proto";
+import public "protip/messages/currency.proto";
+import public "protip/messages/errors.proto";
+import public "protip/messages/money.proto";
+import public "protip/messages/range.proto";
+import public "protip/messages/repeated_wrappers.proto";
+import public "protip/messages/types.proto";
+import public "protip/messages/wrappers.proto";
+import public "protip/messages/active_support/time_with_zone.proto";
