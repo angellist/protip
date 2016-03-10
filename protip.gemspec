@@ -1,7 +1,7 @@
 # encoding: utf-8
 Gem::Specification.new do |spec|
   spec.name          = 'protip'
-  spec.version       = '0.20.1'
+  spec.version       = '0.20.2'
   spec.summary       = 'ActiveModel resources backed by protocol buffers'
   spec.licenses      = ['MIT']
   spec.homepage      = 'https://github.com/AngelList/protip'
@@ -9,6 +9,7 @@ Gem::Specification.new do |spec|
   spec.authors       = ['AngelList']
   spec.email         = ['team@angel.co', 'k2@angel.co', 'brian@angel.co', 'paul@angel.co']
   spec.files         = Dir['lib/**/*.rb'] +
+                       Dir['lib/**/*.rake'] +
                        Dir['test/**/*.rb'] +
                        Dir['definitions/**/*.proto'] +
                        Dir['build/**/*.rb']
