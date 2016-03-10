@@ -31,7 +31,7 @@ namespace :protip do
 
         # figure out the field name and enum name if this line is like
         # +protip.messages.EnumValue value = 3 [(protip_enum) = "Foo"]+
-        match = line.match /\s*[a-zA-Z0-9\.]+\s+([a-zA-Z0-9]+).+\[\s*\(\s*protip_enum\s*\)\s*=\s*"([a-zA-Z0-9\.]+)"\s*\]/
+        match = line.match /\s*[a-zA-Z0-9\.]+\s+([a-zA-Z0-9_]+).+\[\s*\(\s*protip_enum\s*\)\s*=\s*"([a-zA-Z0-9\.]+)"\s*\]/
         if match
           message_name = "#{package ? "#{package}." : ''}#{message_name_stack.compact.join('.')}"
           field_name = match[1]

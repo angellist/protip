@@ -14,5 +14,5 @@ message EnumTest {
     ONE = 1;
   }
   protip.messages.EnumValue enum = 1 [(protip_enum) = "protip.messages.EnumTest.Enum"];
-  protip.messages.RepeatedEnum enums = 2 [(protip_enum) = "protip.messages.EnumTest.Enum"];
+  protip.messages.RepeatedEnum repeated_enums = 2 [(protip_enum) = "protip.messages.EnumTest.Enum"];
 }

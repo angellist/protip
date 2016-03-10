@@ -8,7 +8,7 @@ require 'protip/messages/wrappers'
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "protip.messages.EnumTest" do
     optional :enum, :message, 1, "protip.messages.EnumValue"
-    optional :enums, :message, 2, "protip.messages.RepeatedEnum"
+    optional :repeated_enums, :message, 2, "protip.messages.RepeatedEnum"
   end
   add_enum "protip.messages.EnumTest.Enum" do
     value :ZERO, 0
@@ -25,4 +25,4 @@ end
 
 # -- Protip hack until https://github.com/google/protobuf/issues/1198 is resolved
 Google::Protobuf::DescriptorPool.generated_pool.lookup("protip.messages.EnumTest").lookup("enum").instance_variable_set(:"@_protip_enum_value", "protip.messages.EnumTest.Enum")
-Google::Protobuf::DescriptorPool.generated_pool.lookup("protip.messages.EnumTest").lookup("enums").instance_variable_set(:"@_protip_enum_value", "protip.messages.EnumTest.Enum")
+Google::Protobuf::DescriptorPool.generated_pool.lookup("protip.messages.EnumTest").lookup("repeated_enums").instance_variable_set(:"@_protip_enum_value", "protip.messages.EnumTest.Enum")

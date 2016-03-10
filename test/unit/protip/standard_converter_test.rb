@@ -412,16 +412,16 @@ describe Protip::StandardConverter do
 
     it 'allows setting and getting a repeated field by Ruby value' do
       value_map.each do |value, expected|
-        wrapper.enums = [value]
-        assert_equal [expected], wrapper.enums
+        wrapper.repeated_enums = [value]
+        assert_equal [expected], wrapper.repeated_enums
       end
       assert_raises RangeError do
-        wrapper.enums = [:TWO]
+        wrapper.repeated_enums = [:TWO]
       end
     end
     it 'allows setting and geting a repeated field by message' do
-      wrapper.enums = ::Protip::Messages::RepeatedEnum.new(values: [2])
-      assert_equal [2], wrapper.enums
+      wrapper.repeated_enums = ::Protip::Messages::RepeatedEnum.new(values: [2])
+      assert_equal [2], wrapper.repeated_enums
     end
 
 
