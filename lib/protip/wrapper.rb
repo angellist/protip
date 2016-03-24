@@ -162,11 +162,21 @@ module Protip
         field.type == :bool || (field.type == :message && field.subtype.name == 'google.protobuf.BoolValue')
       end
 
+      def enum_for_field(field)
+        if field.type == :enum
+          field.subtype
+        elsif field.type == :message && field.subtype.name == 'protip.messages.EnumValue'
+          Protip::StandardConverter.enum_for_field(field)
+        else
+          nil
+        end
+      end
+
       # Semi-private check for whether a field should have an associated query method (e.g. +field_name?+).
       # @return [Boolean] Whether the field should have an associated query method on wrappers.
       def matchable?(field)
         return false if field.label == :repeated
-        field.type == :enum || boolean?(field)
+        (nil != enum_for_field(field)) || boolean?(field)
       end
     end
 
@@ -231,7 +241,7 @@ module Protip
     end
 
     def matches?(field, value)
-      enum = field.subtype
+      enum = Protip::Wrapper.enum_for_field(field)
       if value.is_a?(Fixnum)
         sym = enum.lookup_value(value)
       else
@@ -258,7 +268,7 @@ module Protip
     def method_missing_query(name, *args)
       field = message.class.descriptor.lookup(name[0, name.length - 1])
       raise NoMethodError if !field || !self.class.matchable?(field)
-      if field.type == :enum
+      if nil != Protip::Wrapper.enum_for_field(field)
         raise ArgumentError unless args.length == 1
         return matches?(field, args[0])
       elsif self.class.boolean?(field)

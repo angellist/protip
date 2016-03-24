@@ -26,6 +26,9 @@ module Protip::WrapperTest # namespace for internal constants
         add_message 'google.protobuf.BoolValue' do
           optional :value, :bool, 1
         end
+        add_message 'protip.messages.EnumValue' do
+          optional :value, :int32, 1
+        end
 
         add_message 'message' do
           optional :inner, :message, 1, 'inner_message'
@@ -38,16 +41,17 @@ module Protip::WrapperTest # namespace for internal constants
 
           optional :number, :enum, 6, 'number'
           repeated :numbers, :enum, 7, 'number'
+          optional :number_message, :message, 8, 'protip.messages.EnumValue'
 
-          optional :boolean, :bool, 8
-          repeated :booleans, :bool, 9
+          optional :boolean, :bool, 9
+          repeated :booleans, :bool, 10
 
-          optional :google_bool_value, :message, 10, 'google.protobuf.BoolValue'
-          repeated :google_bool_values, :message, 11, 'google.protobuf.BoolValue'
+          optional :google_bool_value, :message, 11, 'google.protobuf.BoolValue'
+          repeated :google_bool_values, :message, 12, 'google.protobuf.BoolValue'
 
           oneof :oneof_group do
-            optional :oneof_string1, :string, 12
-            optional :oneof_string2, :string, 13
+            optional :oneof_string1, :string, 13
+            optional :oneof_string2, :string, 14
           end
         end
       end
@@ -58,6 +62,9 @@ module Protip::WrapperTest # namespace for internal constants
       let(:"#{name}_class") do
         pool.lookup(name).msgclass
       end
+    end
+    let(:enum_message_class) do
+      pool.lookup('protip.messages.EnumValue').msgclass
     end
     let (:inner_message_field) { message_class.descriptor.lookup('inner') }
 
@@ -87,6 +94,13 @@ module Protip::WrapperTest # namespace for internal constants
       Protip::Wrapper.new(wrapped_message, converter)
     end
 
+    # Stub the wrapped-enum fetcher method - probably rethink this once the
+    # instance variable hack is no longer necessary
+    before do
+      Protip::StandardConverter.stubs(:enum_for_field)
+        .returns(pool.lookup('number') || raise('unexpected - no enum field found'))
+    end
+
     describe '#respond_to?' do
       it 'adds setters for message fields' do
         assert_respond_to wrapper, :string=
@@ -103,6 +117,7 @@ module Protip::WrapperTest # namespace for internal constants
       end
       it 'adds queries for scalar matchable fields' do
         assert_respond_to wrapper, :number?, 'enum field should respond to query'
+        assert_respond_to wrapper, :number_message?, 'enum message field should respond to query'
         assert_respond_to wrapper, :boolean?, 'bool field should respond to query'
         assert_respond_to wrapper, :google_bool_value?, 'google.protobuf.BoolValue field should respond to query'
       end
@@ -346,7 +361,7 @@ module Protip::WrapperTest # namespace for internal constants
         end
 
         it 'contains keys for all fields of the parent message' do
-          keys = %i(string strings inner inners inner_blank number numbers boolean booleans
+          keys = %i(string strings inner inners inner_blank number numbers number_message boolean booleans
                     google_bool_value google_bool_values oneof_string1 oneof_string2)
           assert_equal keys.sort, wrapper.to_h.keys.sort
         end
@@ -596,6 +611,32 @@ module Protip::WrapperTest # namespace for internal constants
           end
         end
       end
+
+      describe 'for a wrapped enum' do
+        let :enum_message do
+          enum_message_class.new value: 1
+        end
+
+        before do
+          converter.stubs(:convertible?).with(enum_message_class).returns true
+          converter.stubs(:to_object).with(enum_message, anything).returns :ONE
+          wrapper.message.number_message = enum_message
+        end
+
+        it 'returns true when its symbolized argument matches the value' do
+          m = mock
+          m.expects(:to_sym).returns :ONE
+          assert wrapper.number_message?(m)
+        end
+
+        it 'returns false when its symbolized argument does not match the value' do
+          m = mock
+          m.expects(:to_sym).returns :TWO
+          refute wrapper.number_message?(m)
+        end
+
+      end
+
     end
   end
 end
