@@ -165,7 +165,6 @@ module Protip
         value
       end
 
-      private
       def enum_for_field(field)
         Google::Protobuf::DescriptorPool.generated_pool.lookup(field.instance_variable_get(:'@_protip_enum_value'))
       end
