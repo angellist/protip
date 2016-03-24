@@ -635,6 +635,10 @@ module Protip::WrapperTest # namespace for internal constants
           refute wrapper.number_message?(m)
         end
 
+        it 'returns true when a Fixnum argument matches the value' do
+          assert wrapper.number_message?(1)
+        end
+
       end
 
     end
