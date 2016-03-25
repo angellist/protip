@@ -25,7 +25,7 @@ namespace :protip do
     File.open filename, 'r' do |f|
       f.each_line do |line|
         if line.include? '{'
-          match = line.match(/message\s([a-zA-Z]+)/)
+          match = line.match(/message\s([a-zA-Z0-9]+)/)
           message_name_stack << (match ? match[1] : nil)
         end
 
