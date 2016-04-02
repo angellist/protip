@@ -219,6 +219,11 @@ module Protip::WrapperTest # namespace for internal constants
         assert_equal ['one', 'two'], wrapped_message.strings
       end
 
+      it 'assigns repeated primitive fields as a single-element array when given a scalar' do
+        wrapper.assign_attributes strings: 'one'
+        assert_equal ['one'], wrapped_message.strings
+      end
+
       describe 'when assigning convertible message fields' do
         before do
           converter.stubs(:convertible?).with(inner_message_class).returns(true)
@@ -230,14 +235,22 @@ module Protip::WrapperTest # namespace for internal constants
           assert_equal inner_message_class.new(value: 43), wrapped_message.inner
         end
 
-        it 'converts repeated Ruby values to protobuf messages' do
-          invocation = 0
-          converter.expects(:to_message).twice.with do |value|
-            invocation += 1
-            value == invocation
-          end.returns(inner_message_class.new(value: 43), inner_message_class.new(value: 44))
-          wrapper.assign_attributes inners: [1, 2]
-          assert_equal [inner_message_class.new(value: 43), inner_message_class.new(value: 44)], wrapped_message.inners
+        describe 'when the field is repeated' do
+          it 'converts repeated Ruby values to protobuf messages' do
+            invocation = 0
+            converter.expects(:to_message).twice.with do |value, message_class|
+              invocation += 1
+              value == invocation && message_class == inner_message_class
+            end.returns(inner_message_class.new(value: 43), inner_message_class.new(value: 44))
+            wrapper.assign_attributes inners: [1, 2]
+            assert_equal [inner_message_class.new(value: 43), inner_message_class.new(value: 44)], wrapped_message.inners
+          end
+
+          it 'converts scalar Ruby values to repeated protobuf messages' do
+            converter.expects(:to_message).once.with(1, inner_message_class).returns(inner_message_class.new(value: 42))
+            wrapper.assign_attributes inners: 1
+            assert_equal [inner_message_class.new(value: 42)], wrapped_message.inners
+          end
         end
 
         it 'allows messages to be assigned directly' do
