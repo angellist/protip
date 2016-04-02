@@ -1,7 +1,7 @@
 require 'protip/transformer'
 
 module Protip
-  module Transformer
+  module Transformers
     # Simple wrapper to allow combining the behavior of multiple transformers.
     class DelegatingTransformer
       include Protip::Transformer

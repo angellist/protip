@@ -3,11 +3,10 @@ require 'money'
 
 require 'google/protobuf/wrappers'
 require 'protip/messages/active_support/time_with_zone'
-require 'protip/standard_converter'
+#require 'protip/standard_converter'
 require 'protip/messages/test'
 
-describe Protip::StandardConverter do
-
+if false #describe Protip::StandardConverter do
   let :pool do
     # See https://github.com/google/protobuf/blob/master/ruby/tests/generated_code.rb for
     # examples of field types you can add here

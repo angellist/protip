@@ -19,8 +19,8 @@ require 'active_model/dirty'
 require 'forwardable'
 
 require 'protip/error'
-require 'protip/standard_converter'
 require 'protip/wrapper'
+require 'protip/transformers/default_transformer'
 
 require 'protip/messages/array'
 
@@ -292,7 +292,7 @@ module Protip
     end
 
     def message=(message)
-      @wrapper = Protip::Wrapper.new(message, self.class.converter, self.class.nested_resources)
+      @wrapper = Protip::Wrapper.new(message, transformer, self.class.nested_resources)
     end
 
     def save
@@ -338,6 +338,11 @@ module Protip
     def changes_applied
       @previously_changed = changes
       @changed_attributes.clear
+    end
+
+    # Overwritable if clients want to use something other than the default
+    def transformer
+      ::Protip::Resource.default_transformer
     end
   end
 end

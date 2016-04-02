@@ -1,7 +1,6 @@
 require 'test_helper'
 
 require 'protip/client'
-require 'protip/converter'
 require 'protip/resource'
 
 module Protip::ResourceTest # Namespace for internal constants
@@ -86,7 +85,7 @@ module Protip::ResourceTest # Namespace for internal constants
 
       let :transformer do
         Class.new do
-          include Protip::Converter
+          include Protip::Transformer
         end.new
       end
       describe 'with basic resource' do
