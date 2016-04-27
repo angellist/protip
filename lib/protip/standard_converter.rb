@@ -59,17 +59,29 @@ module Protip
     }
 
     ## Standard wrappers
-    %w(Int64 Int32 UInt64 UInt32 Double Float String Bytes).each do |type|
+    {
+      Int64: :to_i,
+      Int32: :to_i,
+      UInt64: :to_i,
+      UInt32: :to_i,
+      Double: :to_f,
+      Float: :to_f,
+      String: :to_s,
+      Bytes: nil,
+    }.each do |type, conversion|
       @conversions["google.protobuf.#{type}Value"] = {
         to_object: ->(message, field) { message.value },
         to_message: lambda do |value, message_class, field|
-          message_class.new value: value
+          message_class.new value: (conversion ? value.public_send(conversion) : value)
         end
       }
       @conversions["protip.messages.Repeated#{type}"] = {
         to_object: ->(message, field) { message.values.to_a.freeze },
         to_message: lambda do |value, message_class, field|
-          message_class.new values: (value.is_a?(Enumerable) ? value : [value])
+          values = (value.is_a?(Enumerable) ? value : [value]).map do |v|
+            conversion ? v.public_send(conversion) : v
+          end
+          message_class.new values: values
         end
       }
     end

@@ -228,6 +228,28 @@ describe Protip::StandardConverter do
       end
     end
 
+    it 'converts wrapper types when set as a non-native type' do
+      # Convert from string
+      {
+        integer_value => integer_types,
+        float_value   => float_types,
+        bool_value    => bool_types,
+      }.each do |value, message_types|
+        message_types.each do |message_class|
+          assert_equal message_class.new(value: value), converter.to_message(value.to_s, message_class, field)
+        end
+      end
+
+      # Convert from integer
+      {
+        '4' => string_types,
+      }.each do |value, message_types|
+        message_types.each do |message_class|
+          assert_equal message_class.new(value: value), converter.to_message(value.to_i, message_class, field)
+        end
+      end
+    end
+
     it 'converts repeated types when set with a scalar value' do
       {
         integer_value => repeated_integer_types,
@@ -240,6 +262,29 @@ describe Protip::StandardConverter do
           assert_equal message_class.new(values: [value]), converter.to_message(value, message_class, field)
         end
       end
+    end
+
+    it 'converts repeated types when set with a non-native scalar type' do
+      # Convert from string
+      {
+        integer_value => repeated_integer_types,
+        float_value   => repeated_float_types,
+        bool_value    => repeated_bool_types,
+      }.each do |value, message_types|
+        message_types.each do |message_class|
+          assert_equal message_class.new(values: [value]), converter.to_message(value.to_s, message_class, field)
+        end
+      end
+
+      # Convert from integer
+      {
+        '4' => repeated_string_types,
+      }.each do |value, message_types|
+        message_types.each do |message_class|
+          assert_equal message_class.new(values: [value]), converter.to_message(value.to_i, message_class, field)
+        end
+      end
+
     end
 
     it 'converts repeated types when set with an enumerable value' do
@@ -256,6 +301,33 @@ describe Protip::StandardConverter do
           )
         end
       end
+    end
+
+    it 'converts repeated types when set with a non-native enumerable type' do
+      # Convert from string
+      {
+        integer_value => repeated_integer_types,
+        float_value   => repeated_float_types,
+        bool_value    => repeated_bool_types,
+      }.each do |value, message_types|
+        message_types.each do |message_class|
+          assert_equal message_class.new(values: [value, value]), converter.to_message(
+            [value.to_s, value.to_s], message_class, field
+          )
+        end
+      end
+
+      # Convert from integer
+      {
+        '4' => repeated_string_types,
+      }.each do |value, message_types|
+        message_types.each do |message_class|
+          assert_equal message_class.new(values: [value, value]), converter.to_message(
+            [value.to_i, value.to_i], message_class, field
+          )
+        end
+      end
+
     end
 
     it 'converts dates' do
