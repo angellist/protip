@@ -1,31 +1,43 @@
 require 'protip/transformer'
+require 'protip/transformers/abstract_transformer'
 
 module Protip
   module Transformers
-    # Simple wrapper to allow combining the behavior of multiple transformers.
+    # A transformer which forwards to other transformers based on the message type
+    # being converted.
     class DelegatingTransformer
       include Protip::Transformer
-      def initialize
-        @transformers = []
+      extend Forwardable
+
+      # @param [Protip::Transformer] fallback_transformer The transformer to use
+      #   for messages that don't have a registered transformer already.
+      # @param [Hash<String, Protip::Transformer>] transformers A message_name => transformer
+      #   hash specifying which transformers to use for which message types.
+      def initialize(fallback_transformer = AbstractTransformer.new, transformers = {})
+        @fallback_transformer = fallback_transformer
+        @transformers = transformers.dup
       end
 
-      # Add a transformer to the front of the stack, e.g. it will be used before any
-      # already-present transformers if a message class is transformable by more than
-      # one of them.
-      def add(transformer)
-        @transformers.unshift transformer
+      def_delegators :@transformers, :[]=, :[], :keys
+
+      def merge!(delegating_transformer)
+        delegating_transformer.keys.each do |key|
+          self[key] = delegating_transformer[key]
+        end
       end
 
-      def transformable?(message_class)
-        @transformers.any?{|t| t.convertible? message_class}
+      def to_object(message, field)
+        transformer_for(field.submsg_name).to_object(message, field)
       end
 
-      def to_object(message)
-        @transformers.detect{|t| t.convertible? message.class}.to_object(message)
+      def to_message(object, field)
+        transformer_for(field.submsg_name).to_message(object, field)
       end
 
-      def to_message(object, message_class)
-        @transformers.detect{|t| t.convertible? message_class}.to_message(object, message_class)
+      private
+
+      def transformer_for(message_name)
+        @transformers[message_name] || @fallback_transformer
       end
     end
   end

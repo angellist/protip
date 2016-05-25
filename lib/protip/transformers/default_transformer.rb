@@ -5,9 +5,9 @@ module Protip
     # A transformer for our built-in types.
     class DefaultTransformer < DelegatingTransformer
       def initialize
-        super
-        add ::Protip::Transformers::WellKnownTypesTransformer.new
-        add ::Protip::Transformers::ActiveSupport::TimeWithZoneTransformer.new
+        super(::Protip::Transformers::WrappingTransformer.new, {
+
+        })
       end
     end
   end
