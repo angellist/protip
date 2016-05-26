@@ -9,14 +9,14 @@ module Protip
           method: method,
           message: message,
           response_type: response_type
-        nil == response ? nil : ::Protip::Wrapper.new(response, resource.class.converter)
+        nil == response ? nil : ::Protip::Wrapper.new(response, resource.class.transformer)
       end
       def self.collection(resource_class, action, method, message, response_type)
         response = resource_class.client.request path: "#{resource_class.base_path}/#{action}",
           method: method,
           message: message,
           response_type: response_type
-        nil == response ? nil : ::Protip::Wrapper.new(response, resource_class.converter)
+        nil == response ? nil : ::Protip::Wrapper.new(response, resource_class.transformer)
       end
     end
   end

@@ -43,12 +43,6 @@ module Protip
 
     include ActiveModel::Dirty
 
-    # Shared transformer for all resources that don't explicitly specify their own. This is a delegating transformer,
-    # so gems may choose to extend its behavior using e.g. `Protip::Resource.default_transformer.add(MyTransformer.new)`
-    def self.default_transformer
-      @default_transformer ||= Protip::Transformers::DefaultTransformer.new
-    end
-
     included do
       extend ActiveModel::Naming
       extend ActiveModel::Translation
@@ -81,7 +75,7 @@ module Protip
       end
 
       def transformer
-        @transformer || ::Protip::Resource.default_transformer
+        @transformer || ::Protip.default_transformer
       end
 
       private
@@ -158,7 +152,7 @@ module Protip
         if query
           if actions.include?(:show)
             define_singleton_method :find do |id, query_params = {}|
-              wrapper = ::Protip::Wrapper.new(query.new, converter)
+              wrapper = ::Protip::Wrapper.new(query.new, transformer)
               wrapper.assign_attributes query_params
               ::Protip::Resource::SearchMethods.show(self, id, wrapper.message)
             end
@@ -166,7 +160,7 @@ module Protip
 
           if actions.include?(:index)
             define_singleton_method :all do |query_params = {}|
-              wrapper = ::Protip::Wrapper.new(query.new, converter)
+              wrapper = ::Protip::Wrapper.new(query.new, transformer)
               wrapper.assign_attributes query_params
               ::Protip::Resource::SearchMethods.index(self, wrapper.message)
             end
@@ -189,7 +183,7 @@ module Protip
       def member(action:, method:, request: nil, response: nil)
         if request
           define_method action do |request_params = {}|
-            wrapper = ::Protip::Wrapper.new(request.new, self.class.converter)
+            wrapper = ::Protip::Wrapper.new(request.new, self.class.transformer)
             wrapper.assign_attributes request_params
             ::Protip::Resource::ExtraMethods.member self, action, method, wrapper.message, response
           end
@@ -203,13 +197,13 @@ module Protip
       def collection(action:, method:, request: nil, response: nil)
         if request
           define_singleton_method action do |request_params = {}|
-            wrapper = ::Protip::Wrapper.new(request.new, converter)
+            wrapper = ::Protip::Wrapper.new(request.new, transformer)
             wrapper.assign_attributes request_params
             ::Protip::Resource::ExtraMethods.collection self,
-                                                        action,
-                                                        method,
-                                                        wrapper.message,
-                                                        response
+              action,
+              method,
+              wrapper.message,
+              response
           end
         else
           define_singleton_method action do
@@ -338,11 +332,6 @@ module Protip
     def changes_applied
       @previously_changed = changes
       @changed_attributes.clear
-    end
-
-    # Overwritable if clients want to use something other than the default
-    def transformer
-      ::Protip::Resource.default_transformer
     end
   end
 end

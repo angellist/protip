@@ -33,7 +33,7 @@ module Protip
         return true if TRUE_VALUES.include?(object)
         return false if FALSE_VALUES.include?(object)
 
-        raise ArgumentError.new('Unrecognized boolean value')
+        object
       end
 
       # Helper transfomer for scalar well-known types.
@@ -53,6 +53,7 @@ module Protip
           field.subtype.msgclass.new(value: value)
         end
       end
+      private_constant :ScalarTransformer
 
       # Helper transformer for repeated types.
       class ArrayTransformer
@@ -71,6 +72,7 @@ module Protip
           field.subtype.msgclass.new(values: values)
         end
       end
+      private_constant :ArrayTransformer
     end
   end
 end

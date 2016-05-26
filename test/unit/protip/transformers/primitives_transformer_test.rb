@@ -6,9 +6,9 @@ require 'protip/transformers/primitives_transformer'
 require 'google/protobuf/wrappers'
 require 'protip/messages'
 
-describe 'Protip::Transformers::PrimitivesTransformer' do
+describe ::Protip::Transformers::PrimitivesTransformer do
   let(:transformer) { ::Protip::Transformers::PrimitivesTransformer.new }
-  let(:message_class) { raise NotImplementedError } # sub-tests must define
+  let(:message_class) { raise NotImplementedError } # sub-sections must define
   let(:field) do
     field = mock.responds_like_instance_of ::Google::Protobuf::FieldDescriptor
     field.stubs(:submsg_name).returns(message_class.descriptor.name)
@@ -52,7 +52,6 @@ describe 'Protip::Transformers::PrimitivesTransformer' do
             assert_equal 'can\'t modify frozen Array', exception.message
           end
         end
-
 
         describe '#to_message' do
           # Keys are the actual value that should be set on the message,
@@ -109,6 +108,30 @@ describe 'Protip::Transformers::PrimitivesTransformer' do
               end
             end
           end
+        end
+      end
+    end
+  end
+
+  describe '#to_message' do
+    let(:message_class) { Google::Protobuf::BoolValue }
+    it 'converts all truthy values to booleans' do
+      [true, 1, '1', 't', 'T', 'true', 'TRUE', 'on', 'ON'].each do |truth_value|
+        assert_equal Google::Protobuf::BoolValue.new(value: true),
+          transformer.to_message(truth_value, field)
+      end
+    end
+    it 'converts all falsey values to booleans' do
+      [false, 0, '0', 'f', 'F', 'false', 'FALSE', 'off', 'OFF'].each do |false_value|
+        assert_equal Google::Protobuf::BoolValue.new(value: false),
+          transformer.to_message(false_value, field)
+      end
+    end
+
+    it 'raises an exception if non-boolean values passed to a boolean field' do
+      [nil, 'test', Object.new, 2, {}, []].each do |bad_value|
+        assert_raises TypeError do
+          transformer.to_message(bad_value, field)
         end
       end
     end

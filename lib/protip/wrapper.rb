@@ -1,5 +1,7 @@
 require 'active_support/concern'
 
+require 'protip/transformers/enum_transformer'
+
 module Protip
 
   # Wraps a protobuf message to allow:
@@ -79,27 +81,33 @@ module Protip
     #   wrapper.build(:inner, str: 'example')
     #   wrapper.inner.str # => 'example'
     #
+    # Assigns values by wrapping an instance of the inner message, passing in our
+    # transformer, and calling +assign_attributes+ on the wrapper object.
+    #
     # Rebuilds the field if it's already present. Raises an error if the name of a primitive field
-    # or a convertible message field is given.
+    # is given.
     #
     # @param field_name [String|Symbol] The field name to build
     # @param attributes [Hash] The initial attributes to set on the field (as parsed by +assign_attributes+)
     # @return [Protip::Wrapper] The created field
     def build(field_name, attributes = {})
 
-      field = message.class.descriptor.detect{|field| field.name.to_sym == field_name.to_sym}
+      field = message.class.descriptor.detect do |f|
+        f.name.to_sym == field_name.to_sym
+      end
+
       if !field
         raise "No field named #{field_name}"
       elsif field.type != :message
         raise "Can only build message fields: #{field_name}"
-      elsif converter.convertible?(field.subtype.msgclass)
-        raise "Cannot build a convertible field: #{field.name}"
       end
 
-      message[field_name.to_s] = field.subtype.msgclass.new
-      wrapper = get(field)
-      wrapper.assign_attributes attributes
-      wrapper
+      built = field.subtype.msgclass.new
+      built_wrapper = self.class.new(built, transformer)
+      built_wrapper.assign_attributes attributes
+      message[field_name.to_s] = built_wrapper.message
+
+      get(field)
     end
 
     # Mass assignment of message attributes. Nested messages will be built if necessary, but not overwritten
@@ -152,7 +160,7 @@ module Protip
       wrapper.class == self.class &&
         wrapper.message.class == message.class &&
         message.class.encode(message) == wrapper.message.class.encode(wrapper.message) &&
-        converter == wrapper.converter
+        transformer == wrapper.transformer
     end
 
     class << self
@@ -166,7 +174,7 @@ module Protip
         if field.type == :enum
           field.subtype
         elsif field.type == :message && field.subtype.name == 'protip.messages.EnumValue'
-          Protip::StandardConverter.enum_for_field(field)
+          Protip::Transformers::EnumTransformer.enum_for_field(field)
         else
           nil
         end
