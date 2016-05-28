@@ -5,37 +5,32 @@ require 'protip/transformers/enum_transformer'
 module Protip
 
   # Wraps a protobuf message to allow:
-  # - getting/setting of certain message fields as if they were more complex Ruby objects
+  # - getting/setting of message fields as if they were more complex Ruby objects
   # - mass assignment of attributes
   # - standardized creation of nested messages that can't be converted to/from Ruby objects
-  class Wrapper
+  class Decorator
 
-    attr_reader :message, :converter, :nested_resources
+    attr_reader :message, :transformer, :nested_resources
 
-    def initialize(message, converter, nested_resources={})
+    def initialize(message, transformer, nested_resources={})
       @message = message
-      @converter = converter
+      @transformer = transformer
       @nested_resources = nested_resources
     end
 
     def respond_to?(name)
       if super
-        return true
+        true
       else
         # Responds to calls to oneof groups by name
         return true if message.class.descriptor.lookup_oneof(name.to_s)
 
-        # Responds to field getters, setters, and in the scalar enum case, query methods
+        # Responds to field getters, setters, and query methods for all fieldsfa
         field = message.class.descriptor.lookup(name.to_s.gsub(/[=?]$/, ''))
         return false if !field
-        if name[-1, 1] == '?'
-          # For query methods, only respond  if the field is matchable
-          return self.class.matchable?(field)
-        else
-          return true
-        end
+
+        true
       end
-      false
     end
 
     def method_missing(name, *args)
@@ -76,20 +71,25 @@ module Protip
     #
     # We could create an inner message using:
     #
-    #   wrapper = Protip::Wrapper.new(Outer.new, converter)
+    #   wrapper = Protip::Wrapper.new(Outer.new, transformer)
     #   wrapper.inner # => nil
     #   wrapper.build(:inner, str: 'example')
     #   wrapper.inner.str # => 'example'
     #
-    # Assigns values by wrapping an instance of the inner message, passing in our
-    # transformer, and calling +assign_attributes+ on the wrapper object.
+    # Assigns values by decorating an instance of the inner message,
+    # passing in our transformer, and calling +assign_attributes+ on
+    # the created decorator object.
     #
-    # Rebuilds the field if it's already present. Raises an error if the name of a primitive field
-    # is given.
+    # Rebuilds the field if it's already present. Raises an error if
+    # the name of a primitive field is given.
+    #
+    # TODO: do we still need this or is it enough to just use
+    # +decorator.field_name = hash+?
     #
     # @param field_name [String|Symbol] The field name to build
-    # @param attributes [Hash] The initial attributes to set on the field (as parsed by +assign_attributes+)
-    # @return [Protip::Wrapper] The created field
+    # @param attributes [Hash] The initial attributes to set on the
+    #   field (as parsed by +assign_attributes+) @return
+    #   [Protip::Wrapper] The created field
     def build(field_name, attributes = {})
 
       field = message.class.descriptor.detect do |f|
@@ -110,24 +110,30 @@ module Protip
       get(field)
     end
 
-    # Mass assignment of message attributes. Nested messages will be built if necessary, but not overwritten
-    # if they already exist.
+    # Mass assignment of message attributes. Nested messages will be
+    # built if necessary, but not overwritten if they already exist.
     #
-    # @param attributes [Hash] The attributes to set. Keys are field names. For primitive fields and message fields
-    #   which are convertible to/from Ruby objects, values are the same as you'd pass to the field's setter
-    #   method. For nested message fields which can't be converted to/from Ruby objects, values are attribute
-    #   hashes which will be passed down to +assign_attributes+ on the nested field.
-    # @return [NilClass]
+    # @param attributes [Hash] The attributes to set. Keys are field
+    #   names. For primitive fields and message fields which are
+    #   convertible to/from Ruby objects, values are the same as you'd
+    #   pass to the field's setter method. For nested message fields
+    #   which can't be converted to/from Ruby objects, values are
+    #   attribute hashes which will be passed down to
+    #   +assign_attributes+ on the nested field.  @return [NilClass]
     def assign_attributes(attributes)
       attributes.each do |field_name, value|
         field = message.class.descriptor.lookup(field_name.to_s) ||
           (raise ArgumentError.new("Unrecognized field: #{field_name}"))
-
-        # For inconvertible nested messages, we allow a hash to be passed in with nested attributes
-        if field.type == :message && !converter.convertible?(field.subtype.msgclass) && value.is_a?(Hash)
-          wrapper = get(field) || build(field.name) # Create the field if it doesn't already exist
-          wrapper.assign_attributes value
-        # Otherwise, if the field is a message (convertible or not) or a simple type, we set the value directly
+        # Message fields can be set directly by Hash, which either
+        # builds or updates them as appropriate.
+        #
+        # TODO: This kind of oddly assumes that the built message
+        # responds to +assign_attributes+ (as it does when a
+        # +DecoratingTransformer+ is used for the transformation). Can
+        # be removed if we decide the update behavior is unnecessary,
+        # since +DecoratingTransformer+ supports assignment by hash.
+        if field.type == :message && value.is_a?(Hash)
+          (get(field) || build(field.name)).assign_attributes value
         else
           set(field, value)
         end
@@ -140,37 +146,37 @@ module Protip
       to_h.as_json
     end
 
-    # @return [Hash] A hash whose keys are the fields of our message, and whose values are the Ruby representations
-    #   (either nested hashes or converted messages) of the field values.
+    # @return [Hash] A hash whose keys are the fields of our message,
+    #   and whose values are the Ruby representations (either nested
+    #   hashes or transformed messages) of the field values.
     def to_h
       hash = {}
+
+      # Use nested +to_h+ on fields which are also decorated messages
+      transform = ->(v) { v.is_a?(self.class) ? v.to_h : v }
+
       message.class.descriptor.each do |field|
-        value = public_send(field.name)
+        value = get(field)
         if field.label == :repeated
-          value.map!{|v| v.is_a?(self.class) ? v.to_h : v}
+          value.map!{|v| transform[v]}
         else
-          value = (value.is_a?(self.class) ? value.to_h : value)
+          value = transform[value]
         end
         hash[field.name.to_sym] = value
       end
       hash
     end
 
-    def ==(wrapper)
-      wrapper.class == self.class &&
-        wrapper.message.class == message.class &&
-        message.class.encode(message) == wrapper.message.class.encode(wrapper.message) &&
-        transformer == wrapper.transformer
+    def ==(decorator)
+      decorator.class == self.class &&
+        decorator.message.class == message.class &&
+        message.class.encode(message) == decorator.message.class.encode(decorator.message) &&
+        transformer == decorator.transformer
     end
 
     class << self
-      # Whether the given field returns boolean values. When true, wrappers will respond to +field_name?+
-      # query methods.
-      def boolean?(field)
-        field.type == :bool || (field.type == :message && field.subtype.name == 'google.protobuf.BoolValue')
-      end
-
       def enum_for_field(field)
+        return nil if field.label == :repeated
         if field.type == :enum
           field.subtype
         elsif field.type == :message && field.subtype.name == 'protip.messages.EnumValue'
@@ -179,17 +185,13 @@ module Protip
           nil
         end
       end
-
-      # Semi-private check for whether a field should have an associated query method (e.g. +field_name?+).
-      # @return [Boolean] Whether the field should have an associated query method on wrappers.
-      def matchable?(field)
-        return false if field.label == :repeated
-        (nil != enum_for_field(field)) || boolean?(field)
-      end
     end
 
     private
 
+    # Get the transformed value of the given field on our message.
+    #
+    # @param field [::Google::Protobuf::FieldDescriptor]
     def get(field)
       if field.label == :repeated
         message[field.name].map{|value| to_ruby_value field, value}
@@ -198,19 +200,23 @@ module Protip
       end
     end
 
-    # Helper for getting values - converts the value for the given field to one that we can return to the user
+    # Helper for getting values - converts the value for the given
+    # field to one that we can return to the user
+    #
+    # @param field [::Google::Protobuf::FieldDescriptor] The
+    #   descriptor for the field we're fetching.
+    # @param value [Object] The message or primitive value of the
+    #   field.
     def to_ruby_value(field, value)
       if field.type == :message
         field_name_sym = field.name.to_sym
         if nil == value
           nil
-        elsif converter.convertible?(field.subtype.msgclass)
-          converter.to_object value, field
         elsif nested_resources.has_key?(field_name_sym)
           resource_klass = nested_resources[field_name_sym]
           resource_klass.new value
         else
-          self.class.new value, converter
+          transformer.to_object value, field
         end
       else
         value
@@ -225,21 +231,20 @@ module Protip
       end
     end
 
-    # Helper for setting values - converts the value for the given field to one that we can set directly
+    # Helper for setting values - converts the value for the given
+    # field to one that we can set directly
     def to_protobuf_value(field, value)
       if field.type == :message
         if nil == value
           nil
-        # This check must happen before the nested_resources check to ensure nested messages
-        # are set properly
+        # This check must happen before the nested_resources check to
+        # ensure nested messages are set properly
         elsif value.is_a?(field.subtype.msgclass)
           value
-        elsif converter.convertible?(field.subtype.msgclass)
-          converter.to_message value, field.subtype.msgclass, field
         elsif nested_resources.has_key?(field.name.to_sym)
           value.message
         else
-          raise ArgumentError.new "Cannot convert from Ruby object: \"#{field.name}\""
+          transformer.to_message(value, field)
         end
       elsif field.type == :enum
         value.is_a?(Fixnum) ? value : value.to_sym
@@ -249,7 +254,7 @@ module Protip
     end
 
     def matches?(field, value)
-      enum = Protip::Wrapper.enum_for_field(field)
+      enum = Protip::Decorator.enum_for_field(field)
       if value.is_a?(Fixnum)
         sym = enum.lookup_value(value)
       else
@@ -258,7 +263,6 @@ module Protip
       end
       raise RangeError.new("#{field} has no value #{value}") if nil == sym
       get(field) == sym
-
     end
 
     def method_missing_oneof(oneof, *args)
@@ -275,14 +279,18 @@ module Protip
 
     def method_missing_query(name, *args)
       field = message.class.descriptor.lookup(name[0, name.length - 1])
-      raise NoMethodError if !field || !self.class.matchable?(field)
-      if nil != Protip::Wrapper.enum_for_field(field)
-        raise ArgumentError unless args.length == 1
-        return matches?(field, args[0])
-      elsif self.class.boolean?(field)
-        !!get(field)
+      raise NoMethodError unless field
+
+      if nil != Protip::Decorator.enum_for_field(field) && args.length == 1
+        matches?(field, args[0])
+      elsif args.length == 0
+        value = get(field)
+
+        # Copied in from ActiveSupport +.blank?+
+        blank = (value.respond_to?(:empty?) ? !!value.empty? : !value)
+        !blank
       else
-        raise NoMethodError
+        raise ArgumentError
       end
     end
 

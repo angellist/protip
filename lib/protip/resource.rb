@@ -18,8 +18,9 @@ require 'active_model/dirty'
 
 require 'forwardable'
 
+require 'protip/client'
 require 'protip/error'
-require 'protip/wrapper'
+require 'protip/decorator'
 require 'protip/transformers/default_transformer'
 
 require 'protip/messages/array'
@@ -48,8 +49,8 @@ module Protip
       extend ActiveModel::Translation
       extend Forwardable
 
-      def_delegator :@wrapper, :message
-      def_delegator :@wrapper, :as_json
+      def_delegator :@decorator, :message
+      def_delegator :@decorator, :as_json
 
       # Initialize housekeeping variables
       @belongs_to_associations = Set.new
@@ -119,21 +120,19 @@ module Protip
       # Allow calls to oneof groups to get the set oneof field
       def define_oneof_group_methods(message)
         message.descriptor.each_oneof do |oneof_field|
-          def_delegator :@wrapper, :"#{oneof_field.name}"
+          def_delegator :@decorator, :"#{oneof_field.name}"
         end
       end
 
       # Define attribute readers/writers
       def define_attribute_accessors(message)
         message.descriptor.each do |field|
-          def_delegator :@wrapper, :"#{field.name}"
-          if ::Protip::Wrapper.matchable?(field)
-            def_delegator :@wrapper, :"#{field.name}?"
-          end
+          def_delegator :@decorator, :"#{field.name}"
+          def_delegator :@decorator, :"#{field.name}?"
 
           define_method "#{field.name}=" do |new_value|
             old_value = self.message[field.name] # Only compare the raw values
-            @wrapper.send("#{field.name}=", new_value)
+            @decorator.send("#{field.name}=", new_value)
             new_value = self.message[field.name]
 
             # Need to check that types are the same first, otherwise protobuf gets mad comparing
@@ -152,17 +151,17 @@ module Protip
         if query
           if actions.include?(:show)
             define_singleton_method :find do |id, query_params = {}|
-              wrapper = ::Protip::Wrapper.new(query.new, transformer)
-              wrapper.assign_attributes query_params
-              ::Protip::Resource::SearchMethods.show(self, id, wrapper.message)
+              decorator = ::Protip::Decorator.new(query.new, transformer)
+              decorator.assign_attributes query_params
+              ::Protip::Resource::SearchMethods.show(self, id, decorator.message)
             end
           end
 
           if actions.include?(:index)
             define_singleton_method :all do |query_params = {}|
-              wrapper = ::Protip::Wrapper.new(query.new, transformer)
-              wrapper.assign_attributes query_params
-              ::Protip::Resource::SearchMethods.index(self, wrapper.message)
+              decorator = ::Protip::Decorator.new(query.new, transformer)
+              decorator.assign_attributes query_params
+              ::Protip::Resource::SearchMethods.index(self, decorator.message)
             end
           end
         else
@@ -183,9 +182,10 @@ module Protip
       def member(action:, method:, request: nil, response: nil)
         if request
           define_method action do |request_params = {}|
-            wrapper = ::Protip::Wrapper.new(request.new, self.class.transformer)
-            wrapper.assign_attributes request_params
-            ::Protip::Resource::ExtraMethods.member self, action, method, wrapper.message, response
+            decorator = ::Protip::Decorator.new(request.new, self.class.transformer)
+            decorator.assign_attributes request_params
+            ::Protip::Resource::ExtraMethods.member self,
+              action, method, decorator.message, response
           end
         else
           define_method action do
@@ -197,12 +197,12 @@ module Protip
       def collection(action:, method:, request: nil, response: nil)
         if request
           define_singleton_method action do |request_params = {}|
-            wrapper = ::Protip::Wrapper.new(request.new, transformer)
-            wrapper.assign_attributes request_params
+            decorator = ::Protip::Decorator.new(request.new, transformer)
+            decorator.assign_attributes request_params
             ::Protip::Resource::ExtraMethods.collection self,
               action,
               method,
-              wrapper.message,
+              decorator.message,
               response
           end
         else
@@ -220,8 +220,9 @@ module Protip
       end
 
       def belongs_to_polymorphic(association_name, options = {}, &block)
-        # We evaluate the block in the context of a wrapper that stores simple belongs-to associations
-        # as they're being created.
+        # We evaluate the block in the context of a wrapper that
+        # stores simple belongs-to associations as they're being
+        # created.
         nested_association_creator = Class.new do
           attr_reader :associations
           def initialize(resource_class)
@@ -274,7 +275,7 @@ module Protip
         # since we might just assign attributes to the current instance of the message directly
         old_attributes[key] = field && field.type == :message && value ? value.clone : value
       end
-      @wrapper.assign_attributes attributes
+      @decorator.assign_attributes attributes
       keys.each do |key|
         old_value = old_attributes[key]
         new_value = message[key]
@@ -286,7 +287,8 @@ module Protip
     end
 
     def message=(message)
-      @wrapper = Protip::Wrapper.new(message, transformer, self.class.nested_resources)
+      @decorator = Protip::Decorator.new(message,
+        self.class.transformer, self.class.nested_resources)
     end
 
     def save
