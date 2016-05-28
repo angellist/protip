@@ -1,17 +1,20 @@
 require 'test_helper'
 
 require 'google/protobuf'
-require 'protip/wrapper'
-require 'protip/resource'
 
-module Protip::WrapperTest # namespace for internal constants
-  describe Protip::Wrapper do
+require 'protip/decorator'
+require 'protip/resource'
+require 'protip/transformer'
+
+module Protip::DecoratorTest # namespace for internal constants
+  describe Protip::Decorator do
     let(:transformer) do
       Class.new do
-        include Protip::Converter
+        include Protip::Transformer
       end.new
     end
-    let :pool do
+
+    let(:pool) do
       pool = Google::Protobuf::DescriptorPool.new
       pool.build do
         add_enum 'number' do
@@ -86,242 +89,261 @@ module Protip::WrapperTest # namespace for internal constants
       resource_class
     end
 
-    let(:wrapped_message) do
+    # An actual protobuf message, which is used when building the decorator below
+    let(:decorated_message) do
       message_class.new(inner: inner_message_class.new(value: 25), string: 'test')
     end
 
-    let(:wrapper) do
-      Protip::Wrapper.new(wrapped_message, converter)
+    let(:decorator) do
+      Protip::Decorator.new(decorated_message, transformer)
     end
 
     # Stub the wrapped-enum fetcher method - probably rethink this once the
     # instance variable hack is no longer necessary
     before do
-      Protip::StandardConverter.stubs(:enum_for_field)
+      Protip::Transformers::EnumTransformer.stubs(:enum_for_field)
         .returns(pool.lookup('number') || raise('unexpected - no enum field found'))
     end
 
     describe '#respond_to?' do
       it 'adds setters for message fields' do
-        assert_respond_to wrapper, :string=
-        assert_respond_to wrapper, :inner=
-        assert_respond_to wrapper, :inner_blank=
+        assert_respond_to decorator, :string=
+        assert_respond_to decorator, :inner=
+        assert_respond_to decorator, :inner_blank=
       end
       it 'adds getters for message fields' do
-        assert_respond_to wrapper, :string
-        assert_respond_to wrapper, :inner
-        assert_respond_to wrapper, :inner_blank
+        assert_respond_to decorator, :string
+        assert_respond_to decorator, :inner
+        assert_respond_to decorator, :inner_blank
       end
       it 'adds accessors for oneof groups' do
-        assert_respond_to wrapper, :oneof_group
+        assert_respond_to decorator, :oneof_group
       end
-      it 'adds queries for scalar matchable fields' do
-        assert_respond_to wrapper, :number?, 'enum field should respond to query'
-        assert_respond_to wrapper, :number_message?, 'enum message field should respond to query'
-        assert_respond_to wrapper, :boolean?, 'bool field should respond to query'
-        assert_respond_to wrapper, :google_bool_value?, 'google.protobuf.BoolValue field should respond to query'
+      it 'adds queries for scalar fields' do
+        assert_respond_to decorator, :number?, 'enum field should respond to query'
+        assert_respond_to decorator, :number_message?, 'enum message field should respond to query'
+        assert_respond_to decorator, :boolean?, 'bool field should respond to query'
+        assert_respond_to decorator, :google_bool_value?, 'google.protobuf.BoolValue field should respond to query'
+        assert_respond_to decorator, :inner?, 'non-bool message field should respond to query'
       end
-      it 'allows .boolean? to be overwritten to add additional queryable fields' do
-        wrapper.class.stubs(:boolean?).returns(true)
-        assert_respond_to wrapper, :string?
-        wrapper.class.stubs(:boolean?).returns(false)
-        refute_respond_to wrapper, :string?
-      end
-      it 'does not add queries for repeated fields' do
-        refute_respond_to wrapper, :numbers?, 'repeated enum field should not respond to query'
-        refute_respond_to wrapper, :booleans?, 'repeated bool field should not respond to query'
-        refute_respond_to wrapper, :google_bool_values?, 'repeated google.protobuf.BoolValue field should not respond to query'
-      end
-      it 'does not add queries for non-matchable fields' do
-        refute_respond_to wrapper, :inner?
+      it 'adds queries for repeated fields' do
+        assert_respond_to decorator, :numbers?, 'repeated enum field should respond to query'
+        assert_respond_to decorator, :booleans?, 'repeated bool field should respond to query'
+        assert_respond_to decorator, :google_bool_values?, 'repeated google.protobuf.BoolValue field should respond to query'
       end
       it 'responds to standard defined methods' do
-        assert_respond_to wrapper, :as_json
+        assert_respond_to decorator, :as_json
       end
       it 'does not add other setters/getters/queries' do
-        refute_respond_to wrapper, :foo=
-        refute_respond_to wrapper, :foo
-        refute_respond_to wrapper, :foo?
+        refute_respond_to decorator, :foo=
+        refute_respond_to decorator, :foo
+        refute_respond_to decorator, :foo?
       end
       it 'does not add methods which partially match message fields' do
-        refute_respond_to wrapper, :xinner
-        refute_respond_to wrapper, :xinner=
-        refute_respond_to wrapper, :xnumber?
-        refute_respond_to wrapper, :innerx
-        refute_respond_to wrapper, :innerx=
-        refute_respond_to wrapper, :'inner=x'
-        refute_respond_to wrapper, :numberx?
-        refute_respond_to wrapper, :'number?x'
+        refute_respond_to decorator, :xinner
+        refute_respond_to decorator, :xinner=
+        refute_respond_to decorator, :xnumber?
+        refute_respond_to decorator, :innerx
+        refute_respond_to decorator, :innerx=
+        refute_respond_to decorator, :'inner=x'
+        refute_respond_to decorator, :numberx?
+        refute_respond_to decorator, :'number?x'
       end
     end
 
     describe '#build' do
+      let(:decorated_message) { message_class.new }
+      before do
+        decorator.stubs(:get).returns(:opeth)
+      end
+
       it 'raises an error when building a primitive field' do
         assert_raises RuntimeError do
-          wrapper.build(:string)
+          decorator.build(:string)
         end
       end
 
       it 'raises an error when building a repeated primitive field' do
         assert_raises RuntimeError do
-          wrapper.build(:strings)
+          decorator.build(:strings)
         end
       end
 
-      # TODO: How to add a new message to a repeated message field?
-
-      it 'raises an error when building a convertible message' do
-        converter.stubs(:convertible?).with(inner_message_class).returns(true)
-        assert_raises RuntimeError do
-          wrapper.build(:inner)
-        end
+      it 'builds the message when no attributes are provided' do
+        assert_nil decorated_message.inner # Sanity check
+        decorator.build(:inner)
+        assert_equal inner_message_class.new, decorated_message.inner
       end
 
-      describe 'with an inconvertible message field' do
-        let(:wrapped_message) { message_class.new }
+      it 'overwrites the message if it exists' do
+        decorated_message.inner = inner_message_class.new(value: 4)
+        decorator.build(:inner)
+        assert_equal inner_message_class.new, decorated_message.inner
+      end
 
-        before do
-          converter.stubs(:convertible?).with(inner_message_class).returns(false)
-        end
+      it 'delegates to #assign_attributes if attributes are provided' do
+        # A decorator should be created with a new instance of the
+        # message, and the same transformer as the main decorator.
+        inner_decorator = mock('inner decorator')
+        decorator.class.expects(:new).
+          once.
+          with(inner_message_class.new, transformer).
+          returns(inner_decorator)
 
-        it 'builds the message when no attributes are provided' do
-          assert_nil wrapped_message.inner # Sanity check
-          wrapper.build(:inner)
-          assert_equal inner_message_class.new, wrapped_message.inner
-        end
+        # That decorator should be used to assign the given attributes
+        assignment = sequence('assignment')
+        inner_decorator.expects(:assign_attributes).
+          in_sequence(assignment).
+          once.
+          with(value: 40)
 
-        it 'overwrites the message if it exists' do
-          wrapped_message.inner = inner_message_class.new(value: 4)
-          wrapper.build(:inner)
-          assert_equal inner_message_class.new, wrapped_message.inner
-        end
+        # And then return a message, which should be assigned to the
+        # field being built (we return a mock with a different value
+        # so we can check it in the next step).
+        built_message = inner_message_class.new(value: 15)
+        inner_decorator.expects(:message).
+          in_sequence(assignment).
+          once.
+          returns(built_message)
 
-        it 'delegates to #assign_attributes if attributes are provided' do
-          Protip::Wrapper.any_instance.expects(:assign_attributes).once.with({value: 40})
-          wrapper.build(:inner, value: 40)
-        end
+        decorator.build(:inner, value: 40)
+        assert_equal built_message, decorated_message.inner
+      end
 
-        it 'returns the built message' do
-          built = wrapper.build(:inner)
-          assert_equal wrapper.inner, built
-        end
+      it 'returns the built field' do
+        built = decorator.build(:inner)
+        assert_equal :opeth, built
       end
     end
 
     describe '#assign_attributes' do
+
       it 'assigns primitive fields directly' do
-        wrapper.assign_attributes string: 'another thing'
-        assert_equal 'another thing', wrapped_message.string
+        decorator.assign_attributes string: 'another thing'
+        assert_equal 'another thing', decorated_message.string
       end
 
       it 'assigns repeated primitive fields from an enumerator' do
-        wrapper.assign_attributes strings: ['one', 'two']
-        assert_equal ['one', 'two'], wrapped_message.strings
+        decorator.assign_attributes strings: ['one', 'two']
+        assert_equal ['one', 'two'], decorated_message.strings
       end
 
-      describe 'when assigning convertible message fields' do
-        before do
-          converter.stubs(:convertible?).with(inner_message_class).returns(true)
-        end
+      it 'assigns multiple attributes' do
+        decorator.assign_attributes string: 'foo', strings: ['one', 'two']
+        assert_equal 'foo', decorated_message.string
+        assert_equal ['one', 'two'], decorated_message.strings
+      end
+
+      describe 'when assigning message fields with a non-hash' do
 
         it 'converts scalar Ruby values to protobuf messages' do
-          converter.expects(:to_message).once.with(45, inner_message_class, inner_message_field).returns(inner_message_class.new(value: 43))
-          wrapper.assign_attributes inner: 45
-          assert_equal inner_message_class.new(value: 43), wrapped_message.inner
+          transformer.expects(:to_message).
+            once.
+            with(45, inner_message_field).
+            returns(inner_message_class.new(value: 43))
+
+          decorator.assign_attributes inner: 45
+          assert_equal inner_message_class.new(value: 43),
+            decorated_message.inner
         end
 
         it 'converts repeated Ruby values to protobuf messages' do
           invocation = 0
-          converter.expects(:to_message).twice.with do |value|
+          transformer.expects(:to_message).twice.with do |value|
             invocation += 1
             value == invocation
           end.returns(inner_message_class.new(value: 43), inner_message_class.new(value: 44))
-          wrapper.assign_attributes inners: [1, 2]
-          assert_equal [inner_message_class.new(value: 43), inner_message_class.new(value: 44)], wrapped_message.inners
+          decorator.assign_attributes inners: [1, 2]
+          assert_equal [inner_message_class.new(value: 43), inner_message_class.new(value: 44)],
+            decorated_message.inners
         end
 
         it 'allows messages to be assigned directly' do
           message = inner_message_class.new
-          wrapper.assign_attributes inner: message
-          assert_same message, wrapper.message.inner
+          decorator.assign_attributes inner: message
+          assert_same message, decorated_message.inner
+        end
+
+        it "sets fields to nil when they're assigned nil" do
+          decorated_message.inner = inner_message_class.new(value: 60)
+          refute_nil decorated_message.inner
+          decorator.assign_attributes inner: nil
+          assert_nil decorated_message.inner
         end
       end
 
       it 'returns nil' do
-        assert_nil wrapper.assign_attributes({})
+        assert_nil decorator.assign_attributes({})
       end
 
-      describe 'when assigning inconvertible message fields' do
-        before do
-          converter.stubs(:convertible?).with(inner_message_class).returns(false)
+      describe 'when assigning message fields with a hash' do
+        it 'builds nil message fields and assigns attributes to them' do
+          # We expect to transform an empty message, and then assign
+          # attributes on it.
+          transformed_inner_message = mock 'transfomred inner message'
+          transformer.expects(:to_object).once.with(
+            inner_message_class.new,
+            instance_of(::Google::Protobuf::FieldDescriptor)
+          ).returns(transformed_inner_message)
+          transformed_inner_message.expects(:assign_attributes).
+            once.
+            with(note: 'created')
+
+          decorated_message.inner = nil
+          decorator.assign_attributes inner: {note: 'created'}
         end
 
-        it 'sets multiple attributes' do
-          wrapper.assign_attributes string: 'test2', inner: {value: 50}
-          assert_equal 'test2', wrapped_message.string
-          assert_equal inner_message_class.new(value: 50), wrapped_message.inner
-        end
+        it 'updates message fields which are already present' do
+          # We expect to transform the existing message, and then
+          # assign attributes on it.
+          transformed_inner_message = mock 'transformed inner message'
+          inner_message = inner_message_class.new(value: 60)
+          transformer.expects(:to_object).once.with(
+            inner_message,
+            instance_of(::Google::Protobuf::FieldDescriptor)
+          ).returns(transformed_inner_message)
 
-        it 'updates inconvertible message fields which have already been built' do
-          wrapped_message.inner = inner_message_class.new(value: 60)
-          wrapper.assign_attributes inner: {note: 'updated'}
-          assert_equal inner_message_class.new(value: 60, note: 'updated'), wrapped_message.inner
-        end
+          transformed_inner_message.expects(:assign_attributes).
+            once.
+            with(note: 'updated')
 
-        it 'delegates to #assign_attributes on a nested wrapper when setting nested attributes on inconvertible message fields' do
-          inner = mock
-          field = wrapped_message.class.descriptor.detect{|f| f.name.to_sym == :inner}
-          raise 'unexpected' if !field
-          wrapper.stubs(:get).with(field).returns(inner)
-          inner.expects(:assign_attributes).once.with(value: 50, note: 'noted')
-          wrapper.assign_attributes inner: {value: 50, note: 'noted'}
-        end
-
-        it 'sets message fields to nil when they\'re assigned nil' do
-          wrapped_message.inner = inner_message_class.new(value: 60)
-          assert wrapped_message.inner
-          wrapper.assign_attributes inner: nil
-          assert_nil wrapped_message.inner
-        end
-
-        it 'allows messages to be assigned directly' do
-          message = inner_message_class.new
-          wrapper.assign_attributes inner: message
-          assert_same message, wrapper.message.inner
+          decorated_message.inner = inner_message
+          decorator.assign_attributes inner: {note: 'updated'}
         end
       end
     end
 
     describe '#==' do
       it 'returns false for non-wrapper objects' do
-        refute_equal 1, wrapper
-        refute_equal wrapper, 1 # Sanity check, make sure we're testing both sides of equality
+        refute_equal 1, decorator
+        refute_equal decorator, 1 # Sanity check, make sure we're testing both sides of equality
       end
 
       it 'returns false when messages are not equal' do
         alternate_message = message_class.new
-        refute_equal alternate_message, wrapper.message # Sanity check
-        refute_equal wrapper, Protip::Wrapper.new(alternate_message, wrapper.converter)
+        refute_equal alternate_message, decorator.message # Sanity check
+        refute_equal decorator, Protip::Decorator.new(alternate_message, decorator.transformer)
       end
 
-      it 'returns false when converters are not equal' do
-        alternate_converter = Class.new do
-          include Protip::Converter
+      it 'returns false when transformer are not equal' do
+        alternate_transformer = Class.new do
+          include Protip::Transformer
         end.new
-        refute_equal alternate_converter, converter # Sanity check
-        refute_equal wrapper, Protip::Wrapper.new(wrapped_message, alternate_converter)
+        refute_equal alternate_transformer, transformer # Sanity check
+        refute_equal transformer, Protip::Decorator.new(decorated_message, alternate_transformer)
       end
 
-      it 'returns true when the message and converter are equal' do
+      it 'returns true when the message and transformer are equal' do
         # Stub converter equality so we aren't relying on actual equality behavior there
-        alternate_converter = converter.clone
-        converter.expects(:==).at_least_once.with(alternate_converter).returns(true)
-        assert_equal wrapper, Protip::Wrapper.new(wrapped_message.clone, converter)
+        alternate_transformer = transformer.clone
+        transformer.expects(:==).at_least_once.with(alternate_transformer).returns(true)
+        assert_equal decorator, Protip::Decorator.new(decorated_message.clone, transformer)
       end
     end
 
-    describe '#convert' do
-      let :wrapped_message do
+    describe '#to_h' do
+      let(:transformed_value) { mock 'transformed value' }
+      let(:decorated_message) do
         m = message_class.new({
           string: 'test',
           inner: inner_message_class.new(value: 1),
@@ -332,282 +354,280 @@ module Protip::WrapperTest # namespace for internal constants
         end
         m
       end
+
       before do
-        converter.stubs(:convertible?).with(message_class).returns false
+        transformer.stubs(:to_object).returns(transformed_value)
       end
 
-      it 'never checks the convertibility of the top-level message' do
-        converter.expects(:convertible?).with(message_class).never
-        converter.stubs(:convertible?).with(inner_message_class).returns false
-        assert_instance_of Hash, wrapper.to_h
+      it 'contains keys for all fields of the parent message' do
+        keys = %i(
+          string strings inner inners inner_blank number numbers
+          number_message boolean booleans google_bool_value google_bool_values
+          oneof_string1 oneof_string2)
+        assert_equal keys.sort, decorator.to_h.keys.sort
       end
 
-      describe 'with a nested convertible message' do
+      it 'passes along nil values' do
+        hash = decorator.to_h
+        assert hash.has_key?(:inner_blank)
+        assert_nil hash[:inner_blank]
+      end
+
+      it 'transforms scalar messages' do
+        assert_equal transformed_value, decorator.to_h[:inner]
+      end
+
+      it 'transforms repeated messages' do
+        assert_equal [transformed_value, transformed_value],
+          decorator.to_h[:inners]
+      end
+
+      it 'returns scalar primitives directly' do
+        assert_equal 'test', decorator.to_h[:string]
+      end
+
+      it 'returns repeated primitives directly' do
+        assert_equal ['test1', 'test2'], decorator.to_h[:strings]
+      end
+
+      describe 'for fields which transorm to an instance of Protip::Decorator' do
+        let(:transformed_value) { Protip::Decorator.new(inner_message_class.new, transformer) }
+        let(:transformed_value_to_h) { {foo: 'bar'} }
         before do
-          converter.stubs(:convertible?).with(inner_message_class).returns true
-          [1, 2, 3].each{|i| converter.stubs(:to_object).with(inner_message_class.new(value: i), anything).returns(i)}
+          transformed_value.stubs(:to_h).returns(transformed_value_to_h)
         end
-        it 'returns a hash with the nested message converted' do
-          assert_equal 1, wrapper.to_h[:inner]
+        it 'trickles down the :to_h call on scalar messages' do
+          assert_equal transformed_value_to_h, decorator.to_h[:inner]
         end
-        it 'converts a repeated instance of the nested message to an array' do
-          assert_equal [2, 3], wrapper.to_h[:inners]
-        end
-      end
-
-      describe 'with a nested inconvertible message' do
-        before do
-          converter.stubs(:convertible?).with(inner_message_class).returns false
-        end
-
-        it 'contains keys for all fields of the parent message' do
-          keys = %i(string strings inner inners inner_blank number numbers number_message boolean booleans
-                    google_bool_value google_bool_values oneof_string1 oneof_string2)
-          assert_equal keys.sort, wrapper.to_h.keys.sort
-        end
-        it 'assigns nil for missing nested messages' do
-          hash = wrapper.to_h
-          assert hash.has_key?(:inner_blank)
-          assert_nil hash[:inner_blank]
-        end
-        it 'assigns a hash for a scalar instance of the inconvertible message' do
-          assert_equal({value: 1, note: ''}, wrapper.to_h[:inner])
-        end
-        it 'assigns an array of hashes for a repeated instance of the inconvertible message' do
-          assert_equal([{value: 2, note: ''}, {value: 3, note: ''}], wrapper.to_h[:inners])
-        end
-        it 'assigns primitive fields directly' do
-          assert_equal 'test', wrapper.to_h[:string]
-        end
-        it 'assigns an array for repeated primitive fields' do
-          assert_equal %w(test1 test2), wrapper.to_h[:strings]
+        it 'trickles down the :to_h call on repeated messages' do
+          assert_equal [transformed_value_to_h, transformed_value_to_h],
+            decorator.to_h[:inners]
         end
       end
     end
 
-    describe '#get' do
+    describe 'getters' do
       before do
-        resource_class.class_exec(converter, inner_message_class) do |converter, message|
+        resource_class.class_exec(transformer, inner_message_class) do |transformer, message|
           resource actions: [], message: message
-          self.converter = converter
+          self.transformer = transformer
         end
       end
 
-      it 'does not convert simple fields' do
-        converter.expects(:convertible?).never
-        converter.expects(:to_object).never
-        assert_equal 'test', wrapper.string
+      it 'does not transform simple fields' do
+        transformer.expects(:to_object).never
+        assert_equal 'test', decorator.string
       end
 
-      it 'converts convertible messages' do
-        converter.expects(:convertible?).with(inner_message_class).once.returns(true)
-        converter.expects(:to_object).once.with(inner_message_class.new(value: 25), inner_message_field).returns 40
-        assert_equal 40, wrapper.inner
-      end
-
-      it 'wraps inconvertible messages' do
-        converter.expects(:convertible?).with(inner_message_class).once.returns(false)
-        converter.expects(:to_object).never
-        assert_equal Protip::Wrapper.new(inner_message_class.new(value: 25), converter), wrapper.inner
+      it 'transforms messages' do
+        transformer.expects(:to_object).once.with(
+          inner_message_class.new(value: 25),
+          inner_message_field
+        ).returns 40
+        assert_equal 40, decorator.inner
       end
 
       it 'wraps nested resource messages in their defined resource' do
-        message = wrapped_message
+        message = decorated_message
         klass = resource_class
-        wrapper = Protip::Wrapper.new(message, Protip::StandardConverter.new, {inner: klass})
-        assert_equal klass, wrapper.inner.class
-        assert_equal message.inner, wrapper.inner.message
+        decorator = Protip::Decorator.new(message, transformer, {inner: klass})
+        assert_equal klass, decorator.inner.class
+        assert_equal message.inner, decorator.inner.message
       end
 
       it 'returns nil for messages that have not been set' do
-        converter.expects(:convertible?).never
-        converter.expects(:to_object).never
-        assert_equal nil, wrapper.inner_blank
+        transformer.expects(:to_object).never
+        assert_equal nil, decorator.inner_blank
       end
-    end
 
-    describe 'attribute reader' do # generated via method_missing?
       it 'returns the underlying assigned value for oneof fields' do
-        wrapper.oneof_string1 = 'foo'
-        assert_equal 'foo', wrapper.oneof_group
-        wrapper.oneof_string2 = 'bar'
-        assert_equal 'bar', wrapper.oneof_group
-        wrapper.oneof_string2 = 'bar'
-        wrapper.oneof_string1 = 'foo'
-        assert_equal 'foo', wrapper.oneof_group
+        decorated_message.oneof_string1 = 'foo'
+        assert_equal 'foo', decorator.oneof_group
+        decorated_message.oneof_string2 = 'bar'
+        assert_equal 'bar', decorator.oneof_group
+        decorated_message.oneof_string2 = 'bar'
+        decorated_message.oneof_string1 = 'foo'
+        assert_equal 'foo', decorator.oneof_group
       end
 
       it 'returns nil for oneof fields that have not been set' do
-        assert_nil wrapper.oneof_group
+        assert_nil decorator.oneof_group
       end
     end
 
     describe 'attribute writer' do # generated via method_missing?
 
       before do
-        resource_class.class_exec(converter, inner_message_class) do |converter, message|
+        resource_class.class_exec(transformer, inner_message_class) do |transformer, message|
           resource actions: [], message: message
-          self.converter = converter
+          self.transformer = transformer
         end
       end
 
-      it 'does not convert simple fields' do
-        converter.expects(:convertible?).never
-        converter.expects(:to_message).never
+      it 'does not transform simple fields' do
+        transformer.expects(:to_message).never
 
-        wrapper.string = 'test2'
-        assert_equal 'test2', wrapper.message.string
+        decorator.string = 'test2'
+        assert_equal 'test2', decorator.message.string
       end
 
-      it 'converts convertible messages' do
-        converter.expects(:convertible?).at_least_once.with(inner_message_class).returns(true)
-        converter.expects(:to_message).with(40, inner_message_class, inner_message_field).returns(inner_message_class.new(value: 30))
+      it 'transforms messages' do
+        transformer.expects(:to_message).
+          with(40, inner_message_field).
+          returns(inner_message_class.new(value: 30))
 
-        wrapper.inner = 40
-        assert_equal inner_message_class.new(value: 30), wrapper.message.inner
+        decorator.inner = 40
+        assert_equal inner_message_class.new(value: 30), decorated_message.inner
       end
 
-      it 'removes message fields when assigning nil, without checking with the converter' do
-        converter.expects(:convertible?).never
-        converter.expects(:to_message).never
-
-        wrapper.inner = nil
-        assert_equal nil, wrapper.message.inner
+      it 'removes message fields when assigning nil, without transforming them' do
+        transformer.expects(:to_message).never
+        decorator.inner = nil
+        assert_nil decorated_message.inner
       end
 
-      it 'raises an error when setting inconvertible messages' do
-        converter.expects(:convertible?).at_least_once.with(inner_message_class).returns(false)
-        converter.expects(:to_message).never
-        assert_raises ArgumentError do
-          wrapper.inner = 'cannot convert me'
-        end
-      end
-
-      it 'passes through messages without checking whether they are convertible' do
+      it 'passes through messages without transforming them' do
         message = inner_message_class.new(value: 50)
 
-        converter.expects(:convertible?).never
-        converter.expects(:to_message).never
-        wrapper.inner = message
-        assert_equal inner_message_class.new(value: 50), wrapper.message.inner
+        transformer.expects(:to_message).never
+        decorator.inner = message
+        assert_equal inner_message_class.new(value: 50), decorated_message.inner
       end
 
-      it 'for nested resources, sets the resource\'s message' do
-        message = wrapped_message
+      it "for nested resources, sets the resource's message" do
+        message = message_class.new
         klass = resource_class
         new_inner_message = inner_message_class.new(value: 50)
 
         resource = klass.new new_inner_message
-        wrapper = Protip::Wrapper.new(message, Protip::StandardConverter.new, {inner: klass})
+        decorator = Protip::Decorator.new(message, transformer, {inner: klass})
 
         resource.expects(:message).once.returns(new_inner_message)
-        wrapper.inner = resource
+        decorator.inner = resource
 
         assert_equal new_inner_message,
-                     wrapper.message.inner,
-                     'Wrapper did not set its message\'s inner message value to the value of the '\
-                     'given resource\'s message'
+          decorator.message.inner,
+          'Decorator did not set its message\'s inner message value to the value of the '\
+          'given resource\'s message'
       end
 
       it 'raises an error when setting an enum field to an undefined value' do
         assert_raises RangeError do
-          wrapper.number = :NAN
+          decorator.number = :CHEERIOS
         end
       end
 
       it 'allows strings to be set for enum fields' do
-        wrapper.number = 'ONE'
-        assert_equal :ONE, wrapper.number
+        decorator.number = 'ONE'
+        assert_equal :ONE, decorator.number
       end
 
       it 'allows symbols to be set for enum fields' do
-        wrapper.number = :ONE
-        assert_equal :ONE, wrapper.number
+        decorator.number = :ONE
+        assert_equal :ONE, decorated_message.number
       end
 
       it 'allows numbers to be set for enum fields' do
-        wrapper.number = 1
-        assert_equal :ONE, wrapper.number
+        decorator.number = 1
+        assert_equal :ONE, decorated_message.number
       end
 
       it 'allows symbolizable values to be set for enum fields' do
         m = mock
         m.stubs(:to_sym).returns(:ONE)
 
-        wrapper.number = m
-        assert_equal :ONE, wrapper.number
+        decorator.number = m
+        assert_equal :ONE, decorated_message.number
       end
 
       it 'returns the input value' do
         input_value = 'str'
-        assert_equal input_value, wrapper.send(:string=, input_value)
+        assert_equal input_value, (decorator.string = input_value)
       end
     end
 
-    describe 'boolean query methods' do
-      it 'returns the boolean-ized version of the field' do
-        wrapper.class.stubs(:boolean?).returns(true)
+    describe 'queries' do
+      it 'returns the presence of scalar fields' do
+        raise 'unexpected' unless decorated_message.string == 'test'
+        raise 'unexpected' unless decorated_message.boolean == false
+        raise 'unexpected' unless decorated_message.google_bool_value == nil
 
-        # Sanity checks
-        raise 'unexpected string' unless wrapper.string == 'test'
-        raise 'unexpected boolean' unless wrapper.boolean == false
-        raise 'unexpected google_bool_value' unless wrapper.google_bool_value == nil
+        assert_equal true, decorator.string?
+        assert_equal false, decorator.boolean?
+        assert_equal false, decorator.google_bool_value?
 
-        assert_equal true, wrapper.string?, 'did not convert string to boolean'
-        assert_equal false, wrapper.boolean?, 'did not pass through boolean value'
-        assert_equal false, wrapper.google_bool_value?, 'did not convert nil to boolean'
+        decorated_message.string = ''
+        assert_equal false, decorator.string?
       end
+
+      it 'returns the presence of repeated fields' do
+        raise 'unexpected' if decorated_message.strings.length > 0
+        assert_equal false, decorator.strings?
+
+        decorated_message.strings << 'test'
+        assert_equal true, decorator.strings?
+      end
+
+      it 'returns the presence of transformed message fields' do
+        raise 'unexpected' if nil == decorated_message.inner
+        transformer.stubs(:to_object).returns('not empty string')
+        assert_equal true, decorator.inner?
+
+        transformer.stubs(:to_object).returns('')
+        assert_equal false, decorator.inner?
+      end
+
     end
 
     describe '#matches?' do
-      it 'is not defined for non-enum fields' do
-        assert_raises NoMethodError do
-          wrapper.inner?(:test)
+      it 'raises an error for non-enum fields' do
+        assert_raises ArgumentError do
+          decorator.inner?(:test)
         end
       end
 
-      it 'is not defined for repeated enum fields' do
-        assert_raises NoMethodError do
-          wrapper.numbers?(:test)
+      it 'raises an error for repeated enum fields' do
+        assert_raises ArgumentError do
+          decorator.numbers?(:test)
         end
       end
 
       describe 'when given a Fixnum' do
         before do
-          wrapper.number = :ONE
+          decorator.number = :ONE
         end
         it 'returns true when the number matches the value' do
-          assert wrapper.number?(1)
+          assert decorator.number?(1)
         end
         it 'returns false when the number does not match the value' do
-          refute wrapper.number?(0)
+          refute decorator.number?(0)
         end
         it 'raises an error when the number is not a valid value for the enum' do
           assert_raises RangeError do
-            wrapper.number?(3)
+            decorator.number?(3)
           end
         end
       end
 
       describe 'when given a non-Fixnum' do
         before do
-          wrapper.number = :TWO
+          decorator.number = :TWO
         end
         it 'returns true when its symbolized argument matches the value' do
           m = mock
           m.expects(:to_sym).returns :TWO
-          assert wrapper.number?(m)
+          assert decorator.number?(m)
         end
         it 'returns false when its symbolized argument does not match the value' do
           m = mock
           m.expects(:to_sym).returns :ONE
-          refute wrapper.number?(m)
+          refute decorator.number?(m)
         end
         it 'raises an error when its symbolized argument is not a valid value for the enum' do
           m = mock
           m.expects(:to_sym).returns :NAN
           assert_raises RangeError do
-            wrapper.number?(m)
+            decorator.number?(m)
           end
         end
       end
@@ -618,29 +638,29 @@ module Protip::WrapperTest # namespace for internal constants
         end
 
         before do
-          converter.stubs(:convertible?).with(enum_message_class).returns true
-          converter.stubs(:to_object).with(enum_message, anything).returns :ONE
-          wrapper.message.number_message = enum_message
+          transformer.stubs(:to_object).
+            with(enum_message, anything).
+            returns :ONE
+          decorated_message.number_message = enum_message
         end
 
         it 'returns true when its symbolized argument matches the value' do
           m = mock
           m.expects(:to_sym).returns :ONE
-          assert wrapper.number_message?(m)
+          assert decorator.number_message?(m)
         end
 
         it 'returns false when its symbolized argument does not match the value' do
           m = mock
           m.expects(:to_sym).returns :TWO
-          refute wrapper.number_message?(m)
+          refute decorator.number_message?(m)
         end
 
         it 'returns true when a Fixnum argument matches the value' do
-          assert wrapper.number_message?(1)
+          assert decorator.number_message?(1)
         end
 
       end
-
     end
   end
 end
