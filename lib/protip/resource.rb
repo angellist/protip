@@ -18,6 +18,7 @@ require 'active_model/dirty'
 
 require 'forwardable'
 
+require 'protip'
 require 'protip/client'
 require 'protip/error'
 require 'protip/decorator'
@@ -151,17 +152,29 @@ module Protip
         if query
           if actions.include?(:show)
             define_singleton_method :find do |id, query_params = {}|
-              decorator = ::Protip::Decorator.new(query.new, transformer)
-              decorator.assign_attributes query_params
-              ::Protip::Resource::SearchMethods.show(self, id, decorator.message)
+              message = nil
+              if query_params.is_a?(query)
+                message = query_params
+              else
+                decorator = ::Protip::Decorator.new(query.new, transformer)
+                decorator.assign_attributes query_params
+                message = decorator.message
+              end
+              ::Protip::Resource::SearchMethods.show(self, id, message)
             end
           end
 
           if actions.include?(:index)
             define_singleton_method :all do |query_params = {}|
-              decorator = ::Protip::Decorator.new(query.new, transformer)
-              decorator.assign_attributes query_params
-              ::Protip::Resource::SearchMethods.index(self, decorator.message)
+              message = nil
+              if query_params.is_a?(query)
+                message = query_params
+              else
+                decorator = ::Protip::Decorator.new(query.new, transformer)
+                decorator.assign_attributes query_params
+                message = decorator.message
+              end
+              ::Protip::Resource::SearchMethods.index(self, message)
             end
           end
         else
@@ -182,10 +195,16 @@ module Protip
       def member(action:, method:, request: nil, response: nil)
         if request
           define_method action do |request_params = {}|
-            decorator = ::Protip::Decorator.new(request.new, self.class.transformer)
-            decorator.assign_attributes request_params
+            message = nil
+            if request_params.is_a?(request) # Message provided directly
+              message = request_params
+            else # Parameters provided by hash
+              decorator = ::Protip::Decorator.new(request.new, self.class.transformer)
+              decorator.assign_attributes request_params
+              message = decorator.message
+            end
             ::Protip::Resource::ExtraMethods.member self,
-              action, method, decorator.message, response
+              action, method, message, response
           end
         else
           define_method action do
@@ -197,13 +216,16 @@ module Protip
       def collection(action:, method:, request: nil, response: nil)
         if request
           define_singleton_method action do |request_params = {}|
-            decorator = ::Protip::Decorator.new(request.new, transformer)
-            decorator.assign_attributes request_params
+            message = nil
+            if request_params.is_a?(request) # Message provided directly
+              message = request_params
+            else # Parameters provided by hash
+              decorator = ::Protip::Decorator.new(request.new, transformer)
+              decorator.assign_attributes request_params
+              message = decorator.message
+            end
             ::Protip::Resource::ExtraMethods.collection self,
-              action,
-              method,
-              decorator.message,
-              response
+              action, method, message, response
           end
         else
           define_singleton_method action do
