@@ -6,6 +6,8 @@ require 'protip/transformers/default_transformer'
 require 'google/protobuf'
 require 'google/protobuf/wrappers'
 
+require 'protip/messages/test' # For the enum hack
+
 # Tests the whole decoration/transformation process with the default
 # transformer, using well-known types and other transformable message
 # types.
@@ -48,14 +50,14 @@ describe Protip::Decorator do
   let(:string_value_class) { pool.lookup('google.protobuf.StringValue').msgclass }
   let(:enum_value_class) { pool.lookup('protip.messages.EnumValue').msgclass }
 
-  # Temporary while our hacky enum detection is still necessary
-  before do
-    Protip::Transformers::EnumTransformer.stubs(:enum_for_field).
-      with(message_class.descriptor.lookup('enum_value')).
-      returns(pool.lookup('number'))
-  end
-
   describe 'getters' do
+    # Temporary while our hacky enum detection is still necessary
+    before do
+      Protip::Transformers::EnumTransformer.stubs(:enum_for_field).
+        with(message_class.descriptor.lookup('enum_value')).
+        returns(pool.lookup('number'))
+    end
+
     let(:decorated_message) do
       message_class.new(
         inner: inner_message_class.new(value: 50),
@@ -88,6 +90,13 @@ describe Protip::Decorator do
   end
 
   describe 'setters' do
+    # Temporary while our hacky enum detection is still necessary
+    before do
+      Protip::Transformers::EnumTransformer.stubs(:enum_for_field).
+        with(message_class.descriptor.lookup('enum_value')).
+        returns(pool.lookup('number'))
+    end
+
     let(:decorated_message) do
       message_class.new
     end
@@ -152,4 +161,44 @@ describe Protip::Decorator do
     end
   end
 
+  describe 'enum hacks' do # Temp - test an actual compiled file to make sure our options hack is working
+    let(:decorated_message) { Protip::Messages::EnumTest.new }
+    let(:decorator) { Protip::Decorator.new decorated_message, transformer }
+
+    let(:value_map) do
+      {
+        :ONE => :ONE,
+        1 => :ONE,
+        2 => 2,
+      }
+    end
+
+    it 'allows setting and getting a scalar field by Ruby value' do
+      value_map.each do |value, expected|
+        decorator.enum = value
+        assert_equal expected, decorator.enum
+      end
+      assert_raises RangeError do
+        decorator.enum = :TWO
+      end
+    end
+    it 'allows setting and getting a scalar field by message' do
+      decorator.enum = Protip::Messages::EnumValue.new(value: 1)
+      assert_equal :ONE, decorator.enum
+    end
+
+    it 'allows setting and getting a repeated field by Ruby value' do
+      value_map.each do |value, expected|
+        decorator.repeated_enums = [value]
+        assert_equal [expected], decorator.repeated_enums
+      end
+      assert_raises RangeError do
+        decorator.repeated_enums = [:TWO]
+      end
+    end
+    it 'allows setting and geting a repeated field by message' do
+      decorator.repeated_enums = Protip::Messages::RepeatedEnum.new(values: [2])
+      assert_equal [2], decorator.repeated_enums
+    end
+  end
 end

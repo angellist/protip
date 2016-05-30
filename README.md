@@ -86,6 +86,34 @@ import "google/protobuf/timestamp.proto";
 import "protip/messages.proto";
 ```
 
+Enum types
+----------
+
+`protip.messages.EnumValue` and `protip.messages.RepeatedEnum` both
+require a custom option to convert between enum symbols and the
+integral value used by the message.  You can use these types like:
+
+```protobuf
+message Foo {
+  enum Bar { BAZ = 0; }
+  protip.messages.EnumValue bar = 1 [(protip_enum) = "Foo.Bar"];
+}
+```
+
+And then, in Ruby:
+
+```ruby
+m = Foo.new
+m.bar = :BAZ
+m.bar # => :BAZ
+```
+
+Pending resolution of a
+[protobuf issue](https://github.com/google/protobuf/issues/1198), enum
+support also requires that you use the `protip:compile` task provided
+in [`protip/tasks/compile.rake`](lib/protip/tasks/compile.rake) when
+compiling your .proto files.
+
 Architecture
 ------------
 
