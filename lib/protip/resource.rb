@@ -18,9 +18,11 @@ require 'active_model/dirty'
 
 require 'forwardable'
 
+require 'protip'
+require 'protip/client'
 require 'protip/error'
-require 'protip/standard_converter'
-require 'protip/wrapper'
+require 'protip/decorator'
+require 'protip/transformers/default_transformer'
 
 require 'protip/messages/array'
 
@@ -48,8 +50,8 @@ module Protip
       extend ActiveModel::Translation
       extend Forwardable
 
-      def_delegator :@wrapper, :message
-      def_delegator :@wrapper, :as_json
+      def_delegator :@decorator, :message
+      def_delegator :@decorator, :as_json
 
       # Initialize housekeeping variables
       @belongs_to_associations = Set.new
@@ -64,7 +66,7 @@ module Protip
 
       attr_reader :message, :nested_resources, :belongs_to_associations, :belongs_to_polymorphic_associations
 
-      attr_writer :base_path, :converter
+      attr_writer :base_path, :transformer
 
       def base_path
         if @base_path == nil
@@ -74,8 +76,8 @@ module Protip
         end
       end
 
-      def converter
-        @converter || (@_standard_converter ||= Protip::StandardConverter.new)
+      def transformer
+        @transformer || ::Protip.default_transformer
       end
 
       private
@@ -119,21 +121,19 @@ module Protip
       # Allow calls to oneof groups to get the set oneof field
       def define_oneof_group_methods(message)
         message.descriptor.each_oneof do |oneof_field|
-          def_delegator :@wrapper, :"#{oneof_field.name}"
+          def_delegator :@decorator, :"#{oneof_field.name}"
         end
       end
 
       # Define attribute readers/writers
       def define_attribute_accessors(message)
         message.descriptor.each do |field|
-          def_delegator :@wrapper, :"#{field.name}"
-          if ::Protip::Wrapper.matchable?(field)
-            def_delegator :@wrapper, :"#{field.name}?"
-          end
+          def_delegator :@decorator, :"#{field.name}"
+          def_delegator :@decorator, :"#{field.name}?"
 
           define_method "#{field.name}=" do |new_value|
             old_value = self.message[field.name] # Only compare the raw values
-            @wrapper.send("#{field.name}=", new_value)
+            @decorator.send("#{field.name}=", new_value)
             new_value = self.message[field.name]
 
             # Need to check that types are the same first, otherwise protobuf gets mad comparing
@@ -152,17 +152,29 @@ module Protip
         if query
           if actions.include?(:show)
             define_singleton_method :find do |id, query_params = {}|
-              wrapper = ::Protip::Wrapper.new(query.new, converter)
-              wrapper.assign_attributes query_params
-              ::Protip::Resource::SearchMethods.show(self, id, wrapper.message)
+              message = nil
+              if query_params.is_a?(query)
+                message = query_params
+              else
+                decorator = ::Protip::Decorator.new(query.new, transformer)
+                decorator.assign_attributes query_params
+                message = decorator.message
+              end
+              ::Protip::Resource::SearchMethods.show(self, id, message)
             end
           end
 
           if actions.include?(:index)
             define_singleton_method :all do |query_params = {}|
-              wrapper = ::Protip::Wrapper.new(query.new, converter)
-              wrapper.assign_attributes query_params
-              ::Protip::Resource::SearchMethods.index(self, wrapper.message)
+              message = nil
+              if query_params.is_a?(query)
+                message = query_params
+              else
+                decorator = ::Protip::Decorator.new(query.new, transformer)
+                decorator.assign_attributes query_params
+                message = decorator.message
+              end
+              ::Protip::Resource::SearchMethods.index(self, message)
             end
           end
         else
@@ -183,9 +195,16 @@ module Protip
       def member(action:, method:, request: nil, response: nil)
         if request
           define_method action do |request_params = {}|
-            wrapper = ::Protip::Wrapper.new(request.new, self.class.converter)
-            wrapper.assign_attributes request_params
-            ::Protip::Resource::ExtraMethods.member self, action, method, wrapper.message, response
+            message = nil
+            if request_params.is_a?(request) # Message provided directly
+              message = request_params
+            else # Parameters provided by hash
+              decorator = ::Protip::Decorator.new(request.new, self.class.transformer)
+              decorator.assign_attributes request_params
+              message = decorator.message
+            end
+            ::Protip::Resource::ExtraMethods.member self,
+              action, method, message, response
           end
         else
           define_method action do
@@ -197,13 +216,16 @@ module Protip
       def collection(action:, method:, request: nil, response: nil)
         if request
           define_singleton_method action do |request_params = {}|
-            wrapper = ::Protip::Wrapper.new(request.new, converter)
-            wrapper.assign_attributes request_params
+            message = nil
+            if request_params.is_a?(request) # Message provided directly
+              message = request_params
+            else # Parameters provided by hash
+              decorator = ::Protip::Decorator.new(request.new, transformer)
+              decorator.assign_attributes request_params
+              message = decorator.message
+            end
             ::Protip::Resource::ExtraMethods.collection self,
-                                                        action,
-                                                        method,
-                                                        wrapper.message,
-                                                        response
+              action, method, message, response
           end
         else
           define_singleton_method action do
@@ -220,8 +242,9 @@ module Protip
       end
 
       def belongs_to_polymorphic(association_name, options = {}, &block)
-        # We evaluate the block in the context of a wrapper that stores simple belongs-to associations
-        # as they're being created.
+        # We evaluate the block in the context of a wrapper that
+        # stores simple belongs-to associations as they're being
+        # created.
         nested_association_creator = Class.new do
           attr_reader :associations
           def initialize(resource_class)
@@ -274,7 +297,7 @@ module Protip
         # since we might just assign attributes to the current instance of the message directly
         old_attributes[key] = field && field.type == :message && value ? value.clone : value
       end
-      @wrapper.assign_attributes attributes
+      @decorator.assign_attributes attributes
       keys.each do |key|
         old_value = old_attributes[key]
         new_value = message[key]
@@ -286,7 +309,8 @@ module Protip
     end
 
     def message=(message)
-      @wrapper = Protip::Wrapper.new(message, self.class.converter, self.class.nested_resources)
+      @decorator = Protip::Decorator.new(message,
+        self.class.transformer, self.class.nested_resources)
     end
 
     def save

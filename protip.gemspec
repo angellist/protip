@@ -1,8 +1,8 @@
 # encoding: utf-8
 Gem::Specification.new do |spec|
   spec.name          = 'protip'
-  spec.version       = '0.20.7'
-  spec.summary       = 'ActiveModel resources backed by protocol buffers'
+  spec.version       = '0.20.6'
+  spec.summary       = 'Relatively painless protocol buffers in Ruby.'
   spec.licenses      = ['MIT']
   spec.homepage      = 'https://github.com/AngelList/protip'
   spec.summary       = 'Resources backed by protobuf messages'
@@ -18,7 +18,7 @@ Gem::Specification.new do |spec|
 
   spec.add_runtime_dependency 'activemodel', '>= 3.0.0', '< 5.0'
   spec.add_runtime_dependency 'activesupport', '>= 3.0.0', '< 5.0'
-  spec.add_runtime_dependency 'google-protobuf', '= 3.0.0.alpha.5.0.5.1'
+  spec.add_runtime_dependency 'google-protobuf', '>= 3.0.0.alpha.5.0.5.1'
   spec.add_runtime_dependency 'money', '>= 6.5.1', '< 7.0'
 
   spec.add_development_dependency 'minitest', '~> 5.0'

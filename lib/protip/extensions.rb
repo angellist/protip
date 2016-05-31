@@ -3,7 +3,6 @@
 
 require 'google/protobuf'
 
-require 'google/protobuf/descriptor'
 Google::Protobuf::DescriptorPool.generated_pool.build do
 end
 

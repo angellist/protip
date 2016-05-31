@@ -1,7 +1,6 @@
 require 'test_helper'
 
 require 'protip/client'
-require 'protip/converter'
 require 'protip/resource'
 
 module Protip::ResourceTest # Namespace for internal constants
@@ -84,16 +83,16 @@ module Protip::ResourceTest # Namespace for internal constants
 
     describe '.resource' do
 
-      let :converter do
+      let :transformer do
         Class.new do
-          include Protip::Converter
+          include Protip::Transformer
         end.new
       end
       describe 'with basic resource' do
         before do
-          resource_class.class_exec(converter, resource_message_class) do |converter, message|
+          resource_class.class_exec(transformer, resource_message_class) do |transformer, message|
             resource actions: [], message: message
-            self.converter = converter
+            self.transformer = transformer
           end
         end
 
@@ -143,24 +142,21 @@ module Protip::ResourceTest # Namespace for internal constants
           assert_equal 'intern', resource.string
         end
 
-        it 'never checks with the converter when setting simple types' do
-          converter.expects(:convertible?).never
+        it 'never checks with the transformer when setting simple types' do
+          transformer.expects(:to_message).never
           resource = resource_class.new
           resource.string = 'intern'
         end
 
-        it 'checks with the converter when setting message types' do
-          converter.expects(:convertible?).at_least_once.with(nested_message_class).returns(false)
-          resource = resource_class.new
-          assert_raises(ArgumentError) do
-            resource.nested_message = 5
-          end
-        end
-
-        it 'converts message types to and from their Ruby values when the converter allows' do
-          converter.expects(:convertible?).at_least_once.with(nested_message_class).returns(true)
-          converter.expects(:to_message).once.with(6, nested_message_class, nested_message_field).returns(nested_message_class.new number: 100)
-          converter.expects(:to_object).at_least_once.with(nested_message_class.new(number: 100), nested_message_field).returns 'intern'
+        it 'transforms message types to and from their Ruby values' do
+          transformer.expects(:to_message).
+            once.
+            with(6, nested_message_field).
+            returns(nested_message_class.new number: 100)
+          transformer.expects(:to_object).
+            at_least_once.
+            with(nested_message_class.new(number: 100), nested_message_field).
+            returns 'intern'
 
           resource = resource_class.new
           resource.nested_message = 6
@@ -177,37 +173,27 @@ module Protip::ResourceTest # Namespace for internal constants
             refute resource.number?(:ONE)
           end
 
-          it 'defines query methods for the booleans on its message' do
+          it 'defines query methods for the primitives on its message' do
             resource.boolean = true
             assert_respond_to resource, :boolean?
             assert_equal true, resource.boolean?
           end
 
-          it 'defines query methods for the google.protobuf.BoolValues on its message' do
+          it 'defines query methods for the submessages on its message' do
             assert_respond_to resource, :google_bool_value?
             assert_equal false, resource.google_bool_value?
           end
 
-          it 'does not define query methods for repeated enums' do
-            refute_respond_to resource, :numbers?
-            assert_raises NoMethodError do
-              resource.numbers?(:ZERO)
-            end
-          end
-
-          it 'does not define query methods for non-enum fields' do
-            refute_respond_to resource, :inner?
-            assert_raises NoMethodError do
-              resource.inner?(:ZERO)
-            end
+          it 'defines query methods for repeated fields' do
+            assert_respond_to resource, :numbers?
+            assert_equal false, resource.numbers?
           end
         end
       end
       describe 'with empty nested resources' do
         it 'does not throw an error' do
-          resource_class.class_exec(converter, resource_message_class) do |converter, message|
+          resource_class.class_exec(resource_message_class) do |message|
             resource actions: [], message: message, nested_resources: {}
-            self.converter = converter
           end
         end
       end
@@ -215,11 +201,10 @@ module Protip::ResourceTest # Namespace for internal constants
       describe 'with invalid nested resource key' do
         it 'throws an error' do
           assert_raises RuntimeError do
-            resource_class.class_exec(converter, resource_message_class) do |converter, message|
+            resource_class.class_exec(resource_message_class) do |message|
               resource actions: [],
                 message: message,
                 nested_resources: {'snoop' => Protip::Resource}
-              self.converter = converter
             end
           end
         end
@@ -228,9 +213,8 @@ module Protip::ResourceTest # Namespace for internal constants
       describe 'with invalid nested resource class' do
         it 'throws an error' do
           assert_raises RuntimeError do
-            resource_class.class_exec(converter, resource_message_class) do |converter, message|
+            resource_class.class_exec(resource_message_class) do |message|
               resource actions: [], message: message, nested_resources: {dogg: Object}
-              self.converter = converter
             end
           end
         end
@@ -242,12 +226,16 @@ module Protip::ResourceTest # Namespace for internal constants
     # queries
     def self.it_converts_query_parameters
       before do
-        # Sanity check - the user should specify all these variables in "let" statements
-        # http_method, path, query_class, and response specify the expected call to the client
-        # nested_message_field_name specifies the field on the query class that may or may not be convertible, and
-        #   should refer to a submessage field of type nested_message_class
-        # invoke_method! should call the desired method, assuming that +parameters+ contains the query parameters to
-        #   pass in (e.g. `resource_class.all(parameters)` or `resource_class.find('id', parameters)`)
+        # Sanity check - the user should specify all these variables
+        # in "let" statements http_method, path, query_class, and
+        # response specify the expected call to the client
+        # nested_message_field_name specifies the field on the query
+        # class that may or may not be convertible, and should refer
+        # to a submessage field of type nested_message_class
+        # invoke_method! should call the desired method, assuming that
+        # +parameters+ contains the query parameters to pass in
+        # (e.g. `resource_class.all(parameters)` or
+        # `resource_class.find('id', parameters)`)
         %i(
           http_method
           path
@@ -268,40 +256,34 @@ module Protip::ResourceTest # Namespace for internal constants
           ).returns(response)
       end
 
-
-
-      describe 'with a convertible message' do
+      describe 'with a transformable object as one of the attributes' do
         before do
-          resource_class.converter.stubs(:convertible?).with(nested_message_class).returns(true)
-          resource_class.converter.stubs(:to_message)
-            .with(42, nested_message_class, query_class.descriptor.lookup(nested_message_field_name.to_s))
+          resource_class.transformer.stubs(:to_message)
+            .with(42, query_class.descriptor.lookup(nested_message_field_name.to_s))
             .returns(nested_message_class.new(number: 43))
         end
 
         let(:parameters) { {"#{nested_message_field_name}" => 42} }
-        it 'converts query parameters' do
+        it 'transforms query parameters' do
           invoke_method!
         end
       end
 
-      describe 'with an inconvertible message' do
-        before do
-          resource_class.converter.stubs(:convertible?).with(nested_message_class).returns(false)
-          resource_class.converter.expects(:to_message).never
+      describe 'with a submessage as one of the attributes' do
+        let(:parameters) { {"#{nested_message_field_name}" => nested_message_class.new(number: 43)} }
+        it 'allows a submessage to be provided directly' do
+          invoke_method!
         end
+      end
 
-        describe 'with a hash' do
-          let(:parameters) { {"#{nested_message_field_name}" => {number: 43}} }
-          it 'allows a hash to be provided for the nested message' do
-            invoke_method!
-          end
+      describe 'with a message as the main argument' do
+        let(:parameters) do
+          query_class.new(
+            :"#{nested_message_field_name}" => nested_message_class.new(number: 43)
+          )
         end
-
-        describe 'with a submessage' do
-          let(:parameters) { {"#{nested_message_field_name}" => nested_message_class.new(number: 43)} }
-          it 'allows a submessage to be provided directly' do
-            invoke_method!
-          end
+        it 'allows a complete message to be provided directly' do
+          invoke_method!
         end
       end
     end
@@ -537,17 +519,14 @@ module Protip::ResourceTest # Namespace for internal constants
     def self.describe_dirty_attributes_setter(setter_class)
 
       describe 'dirty attributes' do
-        let :converter do
-          Class.new do
-            include Protip::Converter
-          end.new
+        let(:transformer) do
+          mock.responds_like_instance_of(Class.new { include Protip::Transformer })
         end
-
         let :resource do
           resource_class.new resource_message_class.new({
-                                                          string: 'foo',
-                                                          nested_message: nested_message_class.new(number: 32)
-                                                        })
+            string: 'foo',
+            nested_message: nested_message_class.new(number: 32)
+          })
         end
 
         let :setter do
@@ -555,7 +534,7 @@ module Protip::ResourceTest # Namespace for internal constants
         end
 
         before do
-          resource_class.converter = converter
+          resource_class.transformer = transformer
           raise 'sanity check failed' if resource.changed? || resource.string_changed? || resource.nested_message_changed?
         end
 
@@ -573,12 +552,19 @@ module Protip::ResourceTest # Namespace for internal constants
 
         describe '(message attributes)' do
           before do
-            converter.stubs(:convertible?).with(nested_message_class).returns(true)
-            converter.stubs(:to_message).with(42, nested_message_class, nested_message_field).returns(nested_message_class.new(number: 52))
-            converter.stubs(:to_object).with(nested_message_class.new(number: 52), nested_message_field).returns(42)
-            converter.stubs(:to_object).with(nested_message_class.new(number: 62), nested_message_field).returns(72)
+            transformer.stubs(:to_message).
+              with(42, nested_message_field).
+              returns(nested_message_class.new(number: 52))
+
+            transformer.stubs(:to_object).
+              with(nested_message_class.new(number: 52), nested_message_field).
+              returns(42)
+
+            transformer.stubs(:to_object).
+              with(nested_message_class.new(number: 62), nested_message_field).
+              returns(72)
           end
-          it 'marks convertible messages as changed if they are changed as Ruby values' do
+          it 'marks messages as changed if they are changed as Ruby values' do
             setter.set nested_message: 42
             assert resource.changed?, 'resource was not marked as changed'
             assert resource.nested_message_changed?, 'field was not marked as changed'
@@ -593,7 +579,7 @@ module Protip::ResourceTest # Namespace for internal constants
             assert resource.changed?, 'resource was not marked as changed'
             assert resource.nested_message_changed?, 'field was not marked as changed'
           end
-          it 'recognizes when convertible messages are not changed when set as Ruby values' do
+          it 'recognizes when messages are not changed when set as Ruby values' do
             resource.message.nested_message.number = 52
             raise 'sanity check failed' if resource.changed? || resource.nested_message_changed?
             setter.set nested_message: 42
@@ -620,7 +606,7 @@ module Protip::ResourceTest # Namespace for internal constants
       it 'delegates writes to the wrapper object' do
         resource = resource_class.new
         test_string = 'new'
-        Protip::Wrapper.any_instance.expects(:string=).with(test_string)
+        Protip::Decorator.any_instance.expects(:string=).with(test_string)
         resource.string = test_string
       end
 
@@ -647,7 +633,7 @@ module Protip::ResourceTest # Namespace for internal constants
         # called during #initialize as well
         resource
 
-        Protip::Wrapper.any_instance.expects(:assign_attributes).with(string: 'foo')
+        Protip::Decorator.any_instance.expects(:assign_attributes).with(string: 'foo')
         resource.assign_attributes string: 'foo'
       end
 
@@ -656,6 +642,8 @@ module Protip::ResourceTest # Namespace for internal constants
         def set(attributes) ; @resource.assign_attributes attributes ; end
       end
       describe_dirty_attributes_setter setter_class
+
+      # This section relies on correct behavior of +Protip.default_transformer+.
       describe 'dirty attributes (nested hashes)' do
 
         it 'marks nested hashes as changed if they set a new field' do
@@ -964,7 +952,7 @@ module Protip::ResourceTest # Namespace for internal constants
 
         it 'returns the wrapped server response' do
           client.stubs(:request).returns(response)
-          assert_equal Protip::Wrapper.new(response, resource_class.converter), target.action
+          assert_equal Protip::Decorator.new(response, resource_class.transformer), target.action
         end
       end
     end
@@ -1065,14 +1053,10 @@ module Protip::ResourceTest # Namespace for internal constants
         Protip::Resource::Associations::BelongsToPolymorphicAssociation) { }
     end
 
-    describe '.converter' do
+    describe '.transformer' do
       describe 'default value' do
-        it 'defaults to the standard converter' do
-          assert_instance_of Protip::StandardConverter, resource_class.converter
-        end
-
-        it 're-uses the same converter on repeated accesses' do
-          assert_same resource_class.converter, resource_class.converter
+        it 'defaults to the default transformer' do
+          assert_same Protip.default_transformer, resource_class.transformer
         end
       end
     end
