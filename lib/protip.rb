@@ -11,7 +11,7 @@ module Protip
     @default_transformer ||= Protip::Transformers::DefaultTransformer.new
   end
 
-  def self.decorate(message, transformer = Protip.default_transfomer)
+  def self.decorate(message, transformer = Protip.default_transformer)
     Protip::Decorator.new(message, transformer)
   end
 end
