@@ -18,6 +18,10 @@ module Protip
       @nested_resources = nested_resources
     end
 
+    def inspect
+      "<#{self.class.name}(#{transformer.class.name}) #{message.inspect}>"
+    end
+
     def respond_to?(name)
       if super
         true
