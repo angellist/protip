@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package protip.messages;
+
+message BigDecimalValue {
+  bytes serialized = 1;
+}

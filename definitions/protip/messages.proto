@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import public "protip/messages/array.proto";
+import public "protip/messages/big_decimal_value.proto";
 import public "protip/messages/currency.proto";
 import public "protip/messages/errors.proto";
 import public "protip/messages/money.proto";

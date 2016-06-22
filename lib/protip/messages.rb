@@ -4,6 +4,7 @@
 require 'google/protobuf'
 
 require 'protip/messages/array'
+require 'protip/messages/big_decimal_value'
 require 'protip/messages/currency'
 require 'protip/messages/errors'
 require 'protip/messages/money'
