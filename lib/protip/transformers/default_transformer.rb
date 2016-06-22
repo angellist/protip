@@ -16,6 +16,7 @@ module Protip
         merge! Protip::Transformers::PrimitivesTransformer.new
         merge! Protip::Transformers::EnumTransformer.new
         merge! Protip::Transformers::DeprecatedTransformer.new
+        merge! Protip::Transformers::BigDecimalTransformer.new
       end
     end
   end
