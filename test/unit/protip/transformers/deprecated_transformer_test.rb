@@ -109,6 +109,18 @@ describe Protip::Transformers::DeprecatedTransformer do
           )),
           message
       end
+
+      it 'converts other objects via #to_money' do
+        obj = mock
+        obj.stubs(:to_money).returns ::Money.new(250, 'CAD')
+        message = transformer.to_message(obj, field)
+        assert_equal message_class.new(
+          amount_cents: 250,
+          currency: Protip::Messages::Currency.new(
+            currency_code: :CAD
+          )),
+          message
+      end
     end
 
     describe 'ActiveSupport::TimeWithZone' do

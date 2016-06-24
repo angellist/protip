@@ -35,10 +35,10 @@ module Protip
           ::Money.new(message.amount_cents, message.currency.currency_code)
         end
         def to_message(object, field)
-          raise ArgumentError unless object.is_a?(::Money)
-          currency = Protip::Messages::Currency.new(currency_code: object.currency.iso_code.to_sym)
+          money = object.to_money
+          currency = Protip::Messages::Currency.new(currency_code: money.currency.iso_code.to_sym)
           field.subtype.msgclass.new(
-            amount_cents: object.fractional,
+            amount_cents: money.fractional,
             currency: currency,
           )
         end
