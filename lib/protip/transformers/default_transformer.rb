@@ -1,3 +1,4 @@
+require 'protip/transformers/big_decimal_transformer'
 require 'protip/transformers/decorating_transformer'
 require 'protip/transformers/delegating_transformer'
 require 'protip/transformers/deprecated_transformer'
