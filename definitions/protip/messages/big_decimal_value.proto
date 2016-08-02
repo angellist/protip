@@ -3,5 +3,7 @@ syntax = "proto3";
 package protip.messages;
 
 message BigDecimalValue {
-  bytes serialized = 1;
+  int64  numerator   = 1;
+  uint64 denominator = 2;
+  uint32 precision   = 3;
 }

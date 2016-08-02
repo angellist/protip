@@ -1,4 +1,5 @@
 require 'bigdecimal'
+require 'bigdecimal/util' # Pulls in the rational -> bigdecimal conversion
 
 require 'protip/transformer'
 require 'protip/transformers/delegating_transformer'
@@ -11,11 +12,17 @@ module Protip
         self['protip.messages.BigDecimalValue'] = (Class.new do
             include Protip::Transformer
             def to_object(message, field)
-              BigDecimal._load(message.serialized)
+              Rational(message.numerator, message.denominator).to_d(message.precision)
             end
 
             def to_message(object, field)
-              field.subtype.msgclass.new(serialized: BigDecimal.new(object)._dump)
+              object = BigDecimal.new(object)
+              rational = object.to_r
+              field.subtype.msgclass.new(
+                numerator: rational.numerator,
+                denominator: rational.denominator,
+                precision: object.precs[0], # This is the current precision of the decimal
+              )
             end
           end).new
       end

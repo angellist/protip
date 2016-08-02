@@ -21,12 +21,13 @@ describe Protip::Transformers::BigDecimalTransformer do
       expected_value ||= value
       it "transforms #{name} values" do
         message = transformer.to_message(value, field)
-        assert_equal expected_value, transformer.to_object(message, field)
+        object = transformer.to_object(message, field)
+        assert_equal BigDecimal, object.class
+        assert_equal expected_value, object
       end
     end
     describe 'for BigDecimal arguments' do
       it_transforms 'integer', BigDecimal.new(104, 1)
-      it_transforms 'infinity', (BigDecimal.new(1, 1) / 0)
       it_transforms 'fractions', BigDecimal.new(100.5, 5)
       it_transforms 'rational numbers', BigDecimal.new(Rational(2, 3), 3)
     end
