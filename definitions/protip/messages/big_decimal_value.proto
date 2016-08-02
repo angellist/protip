@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package protip.messages;
 
+// No support for infinity/NAN - we just represent the decimal as a
+// rational with precision.
 message BigDecimalValue {
   int64  numerator   = 1;
   uint64 denominator = 2;
