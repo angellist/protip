@@ -1,6 +1,6 @@
 require 'test_helper'
 require 'protip/transformers/timestamp_transformer'
-require 'google/protobuf/timestamp'
+require 'google/protobuf/timestamp_pb'
 
 describe Protip::Transformers::TimestampTransformer do
   let(:transformer) { Protip::Transformers::TimestampTransformer.new }

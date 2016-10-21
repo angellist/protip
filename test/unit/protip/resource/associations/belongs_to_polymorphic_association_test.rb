@@ -141,8 +141,9 @@ describe Protip::Resource::Associations::BelongsToPolymorphicAssociation do
 
         association.write(resource, nil)
 
-        assert_nil resource.rick_ross_id
-        assert_nil resource.fetty_wap_id
+        assert_nil resource.message.reference_id
+        assert resource.rick_ross_id.blank?
+        assert resource.fetty_wap_id.blank?
       end
     end
   end

@@ -9,14 +9,14 @@ namespace :protip do
 
     filename = args[:filename] || raise(ArgumentError.new 'filename argument is required')
 
-    command = "protoc #{proto_path.map{|p| "--proto_path=#{Shellwords.escape p}"}.join ' '} --ruby_out=#{Shellwords.escape ruby_path} #{Shellwords.escape filename}"
+    command = "grpc_tools_ruby_protoc #{proto_path.map{|p| "--proto_path=#{Shellwords.escape p}"}.join ' '} --ruby_out=#{Shellwords.escape ruby_path} #{Shellwords.escape filename}"
     puts command
     system command
 
     ## ridiculous hack around missing options in Ruby, remove when https://github.com/google/protobuf/issues/1198 is resolved
     package_match = File.read(filename).match(/package "?([a-zA-Z0-9\.]+)"?;/)
     package = (package_match ? package_match[1] : nil)
-    ruby_file = filename.gsub(/^#{proto_path.first}\/?/, "#{ruby_path}/").gsub(/proto$/, 'rb') # Relies on a relative filename and proto path, which protoc requires anyway at this point
+    ruby_file = filename.gsub(/^#{proto_path.first}\/?/, "#{ruby_path}/").gsub(/\.proto$/, '_pb.rb') # Relies on a relative filename and proto path, which protoc requires anyway at this point
     raise "cannot find generated Ruby file (#{ruby_file})" unless File.exists?(ruby_file)
 
     # Push/pop message names as we move through the protobuf file

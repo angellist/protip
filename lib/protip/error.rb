@@ -1,6 +1,6 @@
 # Runtime exceptions for the library (protip/messages/errors defines the messages backing resource errors).
 
-require 'protip/messages/errors'
+require 'protip/messages/errors_pb'
 
 module Protip
   class Error < RuntimeError

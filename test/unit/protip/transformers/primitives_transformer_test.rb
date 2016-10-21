@@ -3,8 +3,8 @@ require 'base64'
 
 require 'protip/transformers/primitives_transformer'
 
-require 'google/protobuf/wrappers'
-require 'protip/messages'
+require 'google/protobuf/wrappers_pb'
+require 'protip/messages/errors_pb'
 
 describe ::Protip::Transformers::PrimitivesTransformer do
   let(:transformer) { ::Protip::Transformers::PrimitivesTransformer.new }

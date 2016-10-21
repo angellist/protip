@@ -3,8 +3,8 @@
 
 require 'google/protobuf'
 
-require 'protip/messages/repeated_wrappers'
-require 'protip/messages/wrappers'
+require 'protip/messages/repeated_wrappers_pb'
+require 'protip/messages/wrappers_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "protip.messages.EnumTest" do
     optional :enum, :message, 1, "protip.messages.EnumValue"

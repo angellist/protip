@@ -25,7 +25,7 @@ require 'protip/error'
 require 'protip/decorator'
 require 'protip/transformers/default_transformer'
 
-require 'protip/messages/array'
+require 'protip/messages/array_pb'
 
 require 'protip/resource/creatable'
 require 'protip/resource/updateable'
