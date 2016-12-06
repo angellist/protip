@@ -1,0 +1,6 @@
+source 'https://rubygems.org'
+gemspec path: '../'
+
+# Test against Rails 5 in the Travis build.
+gem 'activemodel',   '~> 5.0'
+gem 'activesupport', '~> 5.0'
