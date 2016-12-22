@@ -3,6 +3,7 @@ require 'active_model/callbacks'
 require 'active_model/validator'
 require 'active_support/callbacks'
 require 'active_support/core_ext/module/delegation'
+require 'active_support/core_ext/object/try'
 
 require 'active_support/concern'
 require 'active_support/core_ext/object/blank'
