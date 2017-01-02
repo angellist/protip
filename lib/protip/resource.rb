@@ -303,11 +303,21 @@ module Protip
         old_value = old_attributes[key]
         new_value = message[key]
         begin
-          unless old_value.class == new_value.class && old_value == new_value
-            send "#{key}_will_change!"
+          changed = !(old_value.class == new_value.class && old_value == new_value)
+        rescue TypeError => e
+
+          # Workaround for a protip bug when comparing messages with
+          # nested messages where the left side is non-nil and the
+          # right side is nil.
+          if e.message == 'wrong argument type nil (expected Message)'
+            changed = true
+          else
+            raise e
           end
-        rescue Exception => e
-          raise "Errored while setting #{descriptor.name}::#{key}, old value #{old_value}, new value #{new_value}"
+        end
+
+        if changed
+          send "#{key}_will_change!"
         end
       end
       nil # return nil to match ActiveRecord behavior

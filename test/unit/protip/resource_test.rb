@@ -36,6 +36,12 @@ module Protip::ResourceTest # Namespace for internal constants
             optional :oneof_string1, :string, 12
             optional :oneof_string2, :string, 13
           end
+
+          optional :double_nested_message, :message, 14, 'double_nested_message'
+        end
+
+        add_message 'double_nested_message' do
+          optional :nested_message, :message, 1, 'nested_message'
         end
 
         add_message 'resource_query' do
@@ -57,7 +63,7 @@ module Protip::ResourceTest # Namespace for internal constants
       end
       pool
     end
-    %w(nested_message resource_message resource_query action_query action_response).each do |name|
+    %w(nested_message resource_message resource_query action_query action_response double_nested_message).each do |name|
       let(:"#{name}_class") do
         pool.lookup(name).msgclass
       end
@@ -563,6 +569,10 @@ module Protip::ResourceTest # Namespace for internal constants
             transformer.stubs(:to_object).
               with(nested_message_class.new(number: 62), nested_message_field).
               returns(72)
+
+            transformer.stubs(:to_object).
+              with(double_nested_message_class.any_instance, anything).
+              returns(100)
           end
           it 'marks messages as changed if they are changed as Ruby values' do
             setter.set nested_message: 42
@@ -590,6 +600,20 @@ module Protip::ResourceTest # Namespace for internal constants
             setter.set nested_message: nested_message_class.new(number: 32)
             refute resource.changed?, 'resource was marked as changed'
             refute resource.string_changed?, 'field was marked as changed'
+          end
+
+          # Test our workaround for a protobuf bug when comparing
+          # messages with sub-messages that are non-nil on the left,
+          # nil on the right.
+          it 'recognizes when double-nested messages are changed to nil values' do
+            # Initially the field should have its nested message set.
+            resource.message.double_nested_message = double_nested_message_class.new(
+              nested_message: nested_message_class.new(number: 10)
+            )
+
+            # Then give it a field with a nil nested message to
+            # trigger the protobuf bug.
+            setter.set double_nested_message: double_nested_message_class.new
           end
         end
       end
