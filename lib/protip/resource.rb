@@ -302,8 +302,12 @@ module Protip
       keys.each do |key|
         old_value = old_attributes[key]
         new_value = message[key]
-        unless old_value.class == new_value.class && old_value == new_value
-          send "#{key}_will_change!"
+        begin
+          unless old_value.class == new_value.class && old_value == new_value
+            send "#{key}_will_change!"
+          end
+        rescue Exception => e
+          raise "Errored while setting #{descriptor.name}::#{key}, old value #{old_value}, new value #{new_value}"
         end
       end
       nil # return nil to match ActiveRecord behavior
