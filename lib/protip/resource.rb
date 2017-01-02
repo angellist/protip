@@ -302,7 +302,21 @@ module Protip
       keys.each do |key|
         old_value = old_attributes[key]
         new_value = message[key]
-        unless old_value.class == new_value.class && old_value == new_value
+        begin
+          changed = !(old_value.class == new_value.class && old_value == new_value)
+        rescue TypeError => e
+
+          # Workaround for a protip bug when comparing messages with
+          # nested messages where the left side is non-nil and the
+          # right side is nil.
+          if e.message == 'wrong argument type nil (expected Message)'
+            changed = true
+          else
+            raise e
+          end
+        end
+
+        if changed
           send "#{key}_will_change!"
         end
       end
