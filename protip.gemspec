@@ -16,7 +16,8 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = '>= 2.1.0'
 
-  spec.add_runtime_dependency 'activemodel', '>= 3.0.0', '<= 5.0'
+  spec.add_runtime_dependency 'activemodel', '>= 3.0.0', '< 6.0'
+  spec.add_runtime_dependency 'activesupport', '>= 3.0.0', '< 6.0'
   spec.add_runtime_dependency 'google-protobuf', '~> 3.1'
   spec.add_runtime_dependency 'money', '>= 6.5.1', '< 7.0'
 
@@ -26,5 +27,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'mocha', '~> 1.1'
   spec.add_development_dependency 'rake', '~> 10.0'
   spec.add_development_dependency 'simplecov', '~> 0.10'
+  spec.add_development_dependency 'pry', '~> 0.10'
   spec.add_development_dependency 'webmock', '~> 1.20'
 end
