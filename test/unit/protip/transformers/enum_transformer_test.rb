@@ -2,7 +2,7 @@ require 'test_helper'
 
 require 'protip/transformers/enum_transformer'
 
-require 'protip/messages'
+require 'protip/messages_pb'
 
 describe Protip::Transformers::EnumTransformer do
   let(:transformer) { Protip::Transformers::EnumTransformer.new }
