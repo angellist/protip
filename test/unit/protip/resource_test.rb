@@ -571,8 +571,13 @@ module Protip::ResourceTest # Namespace for internal constants
               returns(72)
 
             transformer.stubs(:to_object).
-              with(double_nested_message_class.any_instance, anything).
-              returns(100)
+              # Convert any +double_nested_message+ (with the correct
+              # associated field) to the same value, since we don't
+              # really care about testing it.
+              with do |value, field|
+                value.is_a?(double_nested_message_class) &&
+                  field.name == 'double_nested_message'
+              end.returns(100)
           end
           it 'marks messages as changed if they are changed as Ruby values' do
             setter.set nested_message: 42
@@ -602,18 +607,26 @@ module Protip::ResourceTest # Namespace for internal constants
             refute resource.string_changed?, 'field was marked as changed'
           end
 
-          # Test our workaround for a protobuf bug when comparing
-          # messages with sub-messages that are non-nil on the left,
-          # nil on the right.
-          it 'recognizes when double-nested messages are changed to nil values' do
+          # Test that we don't trigger an old protobuf bug when
+          # comparing messages with sub-messages that are non-nil on
+          # the left, nil on the right. (We used to work around this
+          # bug explicitly in our equality check, now just leaving the
+          # test in to make sure it doesn't come back.)
+          it 'recognizes_when_double-nested_messages_are_changed_to_nil_values' do
             # Initially the field should have its nested message set.
             resource.message.double_nested_message = double_nested_message_class.new(
               nested_message: nested_message_class.new(number: 10)
             )
 
+            # Sanity check
+            refute resource.double_nested_message_changed?
+
             # Then give it a field with a nil nested message to
             # trigger the protobuf bug.
             setter.set double_nested_message: double_nested_message_class.new
+
+            # Sanity check
+            assert resource.double_nested_message_changed?
           end
         end
       end
