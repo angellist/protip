@@ -437,7 +437,7 @@ describe Protip::Decorator do
 
     it 'returns nil for messages that have not been set' do
       transformer.expects(:to_object).never
-      assert_equal nil, decorator.inner_blank
+      assert_nil decorator.inner_blank
     end
 
     it 'returns the underlying assigned value for oneof fields' do
