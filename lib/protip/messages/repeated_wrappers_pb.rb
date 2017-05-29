@@ -3,7 +3,7 @@
 
 require 'google/protobuf'
 
-require 'protip/extensions'
+require 'protip/extensions_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "protip.messages.RepeatedDouble" do
     repeated :values, :double, 1

@@ -3,7 +3,7 @@
 
 require 'google/protobuf'
 
-require 'protip/messages/currency'
+require 'protip/messages/currency_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "protip.messages.Money" do
     optional :amount_cents, :int64, 1

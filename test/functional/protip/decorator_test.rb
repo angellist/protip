@@ -4,9 +4,9 @@ require 'protip/decorator'
 require 'protip/transformers/default_transformer'
 
 require 'google/protobuf'
-require 'google/protobuf/wrappers'
+require 'google/protobuf/wrappers_pb'
 
-require 'protip/messages/test' # For the enum hack
+require 'protip/messages/test_pb' # For the enum hack
 
 # Tests the whole decoration/transformation process with the default
 # transformer, using well-known types and other transformable message

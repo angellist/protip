@@ -1,7 +1,7 @@
 require 'test_helper'
 require 'protip/transformers/big_decimal_transformer'
 
-require 'protip/messages'
+require 'protip/messages_pb'
 
 describe Protip::Transformers::BigDecimalTransformer do
   let(:transformer) { Protip::Transformers::BigDecimalTransformer.new }

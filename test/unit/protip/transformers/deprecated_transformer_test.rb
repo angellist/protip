@@ -2,7 +2,7 @@ require 'test_helper'
 
 require 'protip/transformers/deprecated_transformer'
 
-require 'protip/messages'
+require 'protip/messages_pb'
 
 describe Protip::Transformers::DeprecatedTransformer do
   let(:transformer) { Protip::Transformers::DeprecatedTransformer.new }
