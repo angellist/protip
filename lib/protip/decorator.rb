@@ -22,19 +22,17 @@ module Protip
       "<#{self.class.name}(#{transformer.class.name}) #{message.inspect}>"
     end
 
-    def respond_to?(name, include_all=false)
-      if super
-        true
-      else
-        # Responds to calls to oneof groups by name
-        return true if message.class.descriptor.lookup_oneof(name.to_s)
+    def respond_to_missing?(name, *)
+      return true if super
 
-        # Responds to field getters, setters, and query methods for all fieldsfa
-        field = message.class.descriptor.lookup(name.to_s.gsub(/[=?]$/, ''))
-        return false if !field
+      # Responds to calls to oneof groups by name
+      return true if message.class.descriptor.lookup_oneof(name.to_s)
 
-        true
-      end
+      # Responds to field getters, setters, and query methods for all fieldsfa
+      field = message.class.descriptor.lookup(name.to_s.gsub(/[=?]$/, ''))
+      return true if field
+
+      false
     end
 
     def method_missing(name, *args)
