@@ -22,7 +22,7 @@ module Protip
       "<#{self.class.name}(#{transformer.class.name}) #{message.inspect}>"
     end
 
-    def respond_to?(name)
+    def respond_to?(name, include_all=false)
       if super
         true
       else
