@@ -592,7 +592,7 @@ describe Protip::Decorator do
       end
     end
 
-    describe 'when given a Fixnum' do
+    describe 'when given a Fixnum/Integer' do
       before do
         decorator.number = :ONE
       end
@@ -609,7 +609,7 @@ describe Protip::Decorator do
       end
     end
 
-    describe 'when given a non-Fixnum' do
+    describe 'when given a non-Fixnum/Integer' do
       before do
         decorator.number = :TWO
       end
@@ -656,7 +656,7 @@ describe Protip::Decorator do
         refute decorator.number_message?(m)
       end
 
-      it 'returns true when a Fixnum argument matches the value' do
+      it 'returns true when a Fixnum/Integer argument matches the value' do
         assert decorator.number_message?(1)
       end
 

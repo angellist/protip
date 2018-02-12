@@ -249,7 +249,7 @@ module Protip
           transformer.to_message(value, field)
         end
       elsif field.type == :enum
-        value.is_a?(Fixnum) ? value : value.to_sym
+        value.is_a?(1.class) ? value : value.to_sym
       else
         value
       end
@@ -257,7 +257,7 @@ module Protip
 
     def matches?(field, value)
       enum = Protip::Decorator.enum_for_field(field)
-      if value.is_a?(Fixnum)
+      if value.is_a?(1.class)
         sym = enum.lookup_value(value)
       else
         sym = value.to_sym

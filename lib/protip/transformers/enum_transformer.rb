@@ -40,7 +40,7 @@ module Protip
         #   // ScalarTransformer.to_int(:BAZ) # => 1
         #   // ScalarTransformer.to_int(4) # => 4
         def to_int(symbol_or_int, field)
-          if symbol_or_int.is_a?(Fixnum)
+          if symbol_or_int.is_a?(1.class)
             symbol_or_int
           else
             # Convert +.to_sym+ explicitly to allow strings (or other
