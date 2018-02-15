@@ -1,7 +1,7 @@
 # encoding: utf-8
 Gem::Specification.new do |spec|
   spec.name          = 'protip'
-  spec.version       = '0.31.2'
+  spec.version       = '0.32.0'
   spec.summary       = 'Relatively painless protocol buffers in Ruby.'
   spec.licenses      = ['MIT']
   spec.homepage      = 'https://github.com/AngelList/protip'
@@ -28,5 +28,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'rake', '~> 10.0'
   spec.add_development_dependency 'simplecov', '~> 0.10'
   spec.add_development_dependency 'pry', '~> 0.10'
-  spec.add_development_dependency 'webmock', '~> 1.20'
+  spec.add_development_dependency 'webmock', '~> 3.3.0'
 end
