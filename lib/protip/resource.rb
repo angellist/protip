@@ -355,8 +355,14 @@ module Protip
     end
 
     private
+
     # needed for ActiveModel::Dirty in earlier ActiveModel versions
+    # Note(andreasklinger): @changed_attributes does no longer exist in active_support 5.2
+    #   Consider removing this all together. Keep the method call above though. It's required
+    #   by ActiveModel::Dirty
     def changes_applied
+      return super unless @changed_attributes.present?
+
       @previously_changed = changes
       @changed_attributes.clear
     end
