@@ -1,13 +1,13 @@
 # encoding: utf-8
 Gem::Specification.new do |spec|
   spec.name          = 'protip'
-  spec.version       = '0.32.0'
+  spec.version       = '0.32.1'
   spec.summary       = 'Relatively painless protocol buffers in Ruby.'
   spec.licenses      = ['MIT']
   spec.homepage      = 'https://github.com/AngelList/protip'
   spec.summary       = 'Resources backed by protobuf messages'
   spec.authors       = ['AngelList']
-  spec.email         = ['team@angel.co', 'k2@angel.co', 'brian@angel.co', 'paul@angel.co']
+  spec.email         = ['team@angel.co']
   spec.files         = Dir['lib/**/*.rb'] +
                        Dir['lib/**/*.rake'] +
                        Dir['test/**/*.rb'] +
