@@ -1,7 +1,6 @@
 require 'active_support/concern'
 require 'protip/error'
 require 'net/http'
-require 'resolv-replace'
 
 module Protip
   module Client
