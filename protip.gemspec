@@ -16,8 +16,8 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = '>= 2.1.0'
 
-  spec.add_runtime_dependency 'activemodel', '>= 3.0.0', '< 6.0'
-  spec.add_runtime_dependency 'activesupport', '>= 3.0.0', '< 6.0'
+  spec.add_runtime_dependency 'activemodel', '>= 5.2.0'
+  spec.add_runtime_dependency 'activesupport', '>= 5.2.0'
   spec.add_runtime_dependency 'google-protobuf', '~> 3.0'
   spec.add_runtime_dependency 'money', '>= 6.5.1', '< 7.0'
 

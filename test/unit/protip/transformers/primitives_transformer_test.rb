@@ -129,7 +129,7 @@ describe ::Protip::Transformers::PrimitivesTransformer do
     end
 
     it 'raises an exception if non-boolean values passed to a boolean field' do
-      [nil, 'test', Object.new, 2, {}, []].each do |bad_value|
+      ['test', Object.new, 2, {}, []].each do |bad_value|
         assert_raises TypeError do
           transformer.to_message(bad_value, field)
         end

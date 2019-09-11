@@ -1,5 +1,6 @@
 require 'protip/transformer'
 require 'protip/transformers/abstract_transformer'
+require 'forwardable'
 
 module Protip
   module Transformers
