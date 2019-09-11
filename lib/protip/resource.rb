@@ -353,12 +353,5 @@ module Protip
     def errors
       @errors ||= ActiveModel::Errors.new(self)
     end
-
-    private
-    # needed for ActiveModel::Dirty in earlier ActiveModel versions
-    def changes_applied
-      @previously_changed = changes
-      @changed_attributes.clear
-    end
   end
 end

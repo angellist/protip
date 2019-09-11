@@ -1,8 +1,7 @@
 language: ruby
 cache: bundler
 rvm:
-  - 2.2.10
   - 2.4.5
+  - 2.6.4
 gemfile:
-  - gemfiles/Gemfile.rails-4.2.10
-  - gemfiles/Gemfile.rails-5.1
+  - gemfiles/Gemfile.rails-5.2
