@@ -1,7 +1,7 @@
 # encoding: utf-8
 Gem::Specification.new do |spec|
   spec.name          = 'protip'
-  spec.version       = '0.32.2'
+  spec.version       = '0.32.3'
   spec.summary       = 'Relatively painless protocol buffers in Ruby.'
   spec.licenses      = ['MIT']
   spec.homepage      = 'https://github.com/AngelList/protip'
