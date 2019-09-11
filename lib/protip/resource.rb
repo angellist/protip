@@ -358,7 +358,7 @@ module Protip
     # needed for ActiveModel::Dirty in earlier ActiveModel versions
     def changes_applied
       @previously_changed = changes
-      # @changed_attributes is nil in active_support 5.2+
+      # @changed_attributes is nil in ActiveModel 5.2+
       if @changed_attributes.present?
         @changed_attributes.clear
       end
