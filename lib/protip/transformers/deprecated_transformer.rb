@@ -50,7 +50,7 @@ module Protip
           ::Date.new(message.year, message.month, message.day)
         end
         def to_message(object, field)
-          raise ArgumentError unless object.is_a?(::Date)
+          raise ArgumentError, "Field #{field} expected a date, #{object.class.name} given" unless object.is_a?(::Date)
           field.subtype.msgclass.new(year: object.year, month: object.month, day: object.day)
         end
       end
