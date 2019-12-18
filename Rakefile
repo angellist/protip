@@ -1,4 +1,4 @@
-load 'protip/tasks/compile.rake'
+load 'lib/protip/tasks/compile.rake'
 require 'bundler/gem_tasks'
 require 'fileutils'
 require 'rake/testtask'

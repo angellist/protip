@@ -1043,7 +1043,7 @@ module Protip::ResourceTest # Namespace for internal constants
               send method, :association_name, bad_option: 'bad', &block
             end
           end
-          assert_match /bad_option/, error.message
+          assert_match(/bad_option/, error.message)
         end
       end
     end

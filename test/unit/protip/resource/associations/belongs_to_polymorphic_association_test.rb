@@ -46,7 +46,7 @@ describe Protip::Resource::Associations::BelongsToPolymorphicAssociation do
         Protip::Resource::Associations::BelongsToPolymorphicAssociation.new resource_class,
           :reference, [rick_ross_association]
       end
-      assert_match /requires an association to be defined/, error.message
+      assert_match(/requires an association to be defined/, error.message)
     end
 
     it 'raises an error if a belongs-to association is provided for a field outside the oneof' do
@@ -54,7 +54,7 @@ describe Protip::Resource::Associations::BelongsToPolymorphicAssociation do
         Protip::Resource::Associations::BelongsToPolymorphicAssociation.new resource_class,
           :reference, [rick_ross_association, other_association]
       end
-      assert_match /requires an association to be defined/, error.message
+      assert_match(/requires an association to be defined/, error.message)
     end
 
     it 'raises an error if a duplicate belongs-to association is provided' do
@@ -62,7 +62,7 @@ describe Protip::Resource::Associations::BelongsToPolymorphicAssociation do
         Protip::Resource::Associations::BelongsToPolymorphicAssociation.new resource_class,
           :reference, [rick_ross_association, rick_ross_association, fetty_wap_association]
       end
-      assert_match /Duplicate association/, error.message
+      assert_match(/Duplicate association/, error.message)
     end
 
     it 'allows the oneof ID field to be specified' do

@@ -22,7 +22,7 @@ module Protip
           if !value.is_a?(::ActiveSupport::TimeWithZone) && (value.is_a?(Time) || value.is_a?(DateTime))
             value = ::ActiveSupport::TimeWithZone.new(value.to_time.utc, ::ActiveSupport::TimeZone.new('UTC'))
           end
-          raise ArgumentError unless value.is_a?(::ActiveSupport::TimeWithZone)
+          raise ArgumentError.new("Expected ActiveSupport::TimeWithZone, received #{value.class.name}") unless value.is_a?(::ActiveSupport::TimeWithZone)
 
           message_class.new(
             utc_timestamp: value.to_i,

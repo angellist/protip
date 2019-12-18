@@ -25,7 +25,7 @@ module Protip
           decorator.assign_attributes(object)
           decorator.message
         else
-          raise ArgumentError
+          raise ArgumentError.new("#to_message expected a Hash or an already decorated object, received #{object.class.name} for #{field.type} #{field.name}")
         end
       end
     end
