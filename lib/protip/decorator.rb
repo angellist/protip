@@ -281,7 +281,7 @@ module Protip
 
     def method_missing_query(name, *args)
       field = message.class.descriptor.lookup(name[0, name.length - 1])
-      raise NoMethodError unless field
+      raise NoMethodError.new("No query method found for: #{name}") unless field
 
       if nil != Protip::Decorator.enum_for_field(field) && args.length == 1
         matches?(field, args[0])

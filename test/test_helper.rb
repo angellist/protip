@@ -1,5 +1,5 @@
 require 'minitest/autorun'
-require 'mocha/mini_test'
+require 'mocha/minitest'
 require 'webmock/minitest'
 require 'minitest/stub/const'
 

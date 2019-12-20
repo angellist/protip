@@ -50,7 +50,7 @@ module Protip
           ::Date.new(message.year, message.month, message.day)
         end
         def to_message(object, field)
-          raise ArgumentError, "Field #{field} expected a date, #{object.class.name} given" unless object.is_a?(::Date)
+          raise ArgumentError.new("Field #{field.name} expected a date, #{object.class.name} given") unless object.is_a?(::Date)
           field.subtype.msgclass.new(year: object.year, month: object.month, day: object.day)
         end
       end
@@ -77,7 +77,7 @@ module Protip
           if !object.is_a?(::ActiveSupport::TimeWithZone) && (object.is_a?(Time) || object.is_a?(DateTime))
             object = ::ActiveSupport::TimeWithZone.new(object.to_time.utc, ::ActiveSupport::TimeZone.new('UTC'))
           end
-          raise ArgumentError unless object.is_a?(::ActiveSupport::TimeWithZone)
+          raise ArgumentError.new("Expected ActiveSupport::TimeWithZone, received #{object.class.name}") unless object.is_a?(::ActiveSupport::TimeWithZone)
 
           field.subtype.msgclass.new(
             utc_timestamp: object.to_i,
