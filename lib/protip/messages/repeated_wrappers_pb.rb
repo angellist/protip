@@ -5,35 +5,37 @@ require 'google/protobuf'
 
 require 'protip/extensions_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
-  add_message "protip.messages.RepeatedDouble" do
-    repeated :values, :double, 1
-  end
-  add_message "protip.messages.RepeatedFloat" do
-    repeated :values, :float, 1
-  end
-  add_message "protip.messages.RepeatedInt64" do
-    repeated :values, :int64, 1
-  end
-  add_message "protip.messages.RepeatedUInt64" do
-    repeated :values, :uint64, 1
-  end
-  add_message "protip.messages.RepeatedInt32" do
-    repeated :values, :int32, 1
-  end
-  add_message "protip.messages.RepeatedUInt32" do
-    repeated :values, :uint32, 1
-  end
-  add_message "protip.messages.RepeatedBool" do
-    repeated :values, :bool, 1
-  end
-  add_message "protip.messages.RepeatedString" do
-    repeated :values, :string, 1
-  end
-  add_message "protip.messages.RepeatedBytes" do
-    repeated :values, :bytes, 1
-  end
-  add_message "protip.messages.RepeatedEnum" do
-    repeated :values, :int32, 1
+  add_file("protip/messages/repeated_wrappers.proto", :syntax => :proto3) do
+    add_message "protip.messages.RepeatedDouble" do
+      repeated :values, :double, 1
+    end
+    add_message "protip.messages.RepeatedFloat" do
+      repeated :values, :float, 1
+    end
+    add_message "protip.messages.RepeatedInt64" do
+      repeated :values, :int64, 1
+    end
+    add_message "protip.messages.RepeatedUInt64" do
+      repeated :values, :uint64, 1
+    end
+    add_message "protip.messages.RepeatedInt32" do
+      repeated :values, :int32, 1
+    end
+    add_message "protip.messages.RepeatedUInt32" do
+      repeated :values, :uint32, 1
+    end
+    add_message "protip.messages.RepeatedBool" do
+      repeated :values, :bool, 1
+    end
+    add_message "protip.messages.RepeatedString" do
+      repeated :values, :string, 1
+    end
+    add_message "protip.messages.RepeatedBytes" do
+      repeated :values, :bytes, 1
+    end
+    add_message "protip.messages.RepeatedEnum" do
+      repeated :values, :int32, 1
+    end
   end
 end
 

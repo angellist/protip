@@ -1,6 +1,13 @@
 /coverage/
-/Gemfile.lock
 /gemfiles/*.lock
 /pkg/
 /.bundle/
 /.ruby-version
+.DS_Store
+*.gem
+
+# https://yehudakatz.com/2010/12/16/clarifying-the-roles-of-the-gemspec-and-gemfile/
+Gemfile.lock
+
+# MiniTest-ci JUnit reports for CircleCI
+test/reports

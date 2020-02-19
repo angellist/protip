@@ -16,7 +16,7 @@ module Protip
             end
 
             def to_message(object, field)
-              object = BigDecimal.new(object)
+              object = BigDecimal(object)
               rational = object.to_r
               field.subtype.msgclass.new(
                 numerator: rational.numerator,

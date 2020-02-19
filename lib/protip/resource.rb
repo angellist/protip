@@ -19,7 +19,6 @@ require 'active_model/dirty'
 
 require 'forwardable'
 
-require 'protip'
 require 'protip/client'
 require 'protip/error'
 require 'protip/decorator'
@@ -78,14 +77,14 @@ module Protip
       end
 
       def transformer
-        @transformer || ::Protip.default_transformer
+        defined?(@transformer) ? @transformer : ::Protip.default_transformer
       end
 
       private
 
       # Primary entry point for defining resourceful behavior.
       def resource(actions:, message:, query: nil, nested_resources: {})
-        raise RuntimeError.new('Only one call to `resource` is allowed') if @message
+        raise RuntimeError.new('Only one call to `resource` is allowed') if defined?(@message) && @message
         validate_actions!(actions)
         validate_nested_resources!(nested_resources)
 
@@ -334,6 +333,18 @@ module Protip
         error.errors.field_errors.each do |field_error|
           errors.add field_error.field, field_error.message
         end
+      end
+      success
+    end
+
+    class RecordInvalid < StandardError
+    end
+
+    def save!
+      success = save
+      if !success
+        error_messages = errors.full_messages.join(", ")
+        raise RecordInvalid.new("Validation failed: #{error_messages}")
       end
       success
     end

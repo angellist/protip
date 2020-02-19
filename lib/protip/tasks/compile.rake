@@ -1,4 +1,6 @@
 require 'shellwords'
+require 'bundler/setup'
+
 namespace :protip do
   desc 'compile a single .proto file to Ruby'
   task :compile, [:filename, :proto_path, :ruby_path] do |t, args|
@@ -9,7 +11,7 @@ namespace :protip do
 
     filename = args[:filename] || raise(ArgumentError.new 'filename argument is required')
 
-    command = "grpc_tools_ruby_protoc #{proto_path.map{|p| "--proto_path=#{Shellwords.escape p}"}.join ' '} --ruby_out=#{Shellwords.escape ruby_path} #{Shellwords.escape filename}"
+    command = "bundle exec grpc_tools_ruby_protoc #{proto_path.map{|p| "--proto_path=#{Shellwords.escape p}"}.join ' '} --ruby_out=#{Shellwords.escape ruby_path} #{Shellwords.escape filename}"
     puts command
     system command
 
