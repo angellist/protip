@@ -27,14 +27,14 @@ describe Protip::Transformers::BigDecimalTransformer do
       end
     end
     describe 'for BigDecimal arguments' do
-      it_transforms 'integer', BigDecimal.new(104, 1)
-      it_transforms 'fractions', BigDecimal.new(100.5, 5)
-      it_transforms 'rational numbers', BigDecimal.new(Rational(2, 3), 3)
+      it_transforms 'integer', BigDecimal(104, 1)
+      it_transforms 'fractions', BigDecimal(100.5, 5)
+      it_transforms 'rational numbers', BigDecimal(Rational(2, 3), 3)
     end
 
     describe 'for non-BigDecimal arguments' do
-      it_transforms 'integer', 3, BigDecimal.new(3, 1)
-      it_transforms 'string', '3.3', BigDecimal.new(3.3, 2)
+      it_transforms 'integer', 3, BigDecimal(3, 1)
+      it_transforms 'string', '3.3', BigDecimal(3.3, 2)
 
       # Match standard BigDecimal behavior for floats
       it 'raises an argument error for floats' do

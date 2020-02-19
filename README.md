@@ -1,10 +1,8 @@
 # DEPRECATED
 
-> This gem hasn't been meaningfully maintained since 2017-2018. The released gem will remain public, but no future development will be done outside the organization.
+> This gem hasn't been meaningfully maintained since 2017-2018. The released gem will remain public, but future development is unlikely beyond bumps to dependency versions.
 
 -------
-
-
 
 [![Build Status](https://travis-ci.org/AngelList/protip.svg)](https://travis-ci.org/AngelList/protip)
 -------

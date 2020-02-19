@@ -1,3 +1,4 @@
+require 'protip/version'
 require 'protip/client'
 require 'protip/resource'
 

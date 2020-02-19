@@ -5,8 +5,10 @@ require 'google/protobuf'
 
 require 'protip/extensions_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
-  add_message "protip.messages.EnumValue" do
-    optional :value, :int32, 1
+  add_file("protip/messages/wrappers.proto", :syntax => :proto3) do
+    add_message "protip.messages.EnumValue" do
+      optional :value, :int32, 1
+    end
   end
 end
 

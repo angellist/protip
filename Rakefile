@@ -21,6 +21,7 @@ end
 
 desc 'Compile protobuf sources to Ruby classes.'
 task compile: :clean do
+  puts "Using version: #{`bundle exec grpc_tools_ruby_protoc --version`.strip}"
   ::Dir.glob('definitions/**/*.proto').each do |file|
     Rake::Task['protip:compile'].execute filename: file
   end
