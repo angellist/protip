@@ -31,7 +31,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'minitest', '~> 5.0'
   spec.add_development_dependency 'minitest-stub-const', '~> 0.6'
   spec.add_development_dependency 'mocha', '~> 1.11'
-  spec.add_development_dependency 'rake', '~> 10.5'
+  spec.add_development_dependency 'rake', '>= 12.3.3'
   spec.add_development_dependency 'simplecov', '~> 0.18'
   spec.add_development_dependency 'pry-byebug'
   spec.add_development_dependency 'webmock', '~> 3'

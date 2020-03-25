@@ -69,27 +69,9 @@ module Protip
     # @param request [Net::HTTPGenericRequest] the raw request object to send
     # @return [Net::HTTPResponse] the response for the given request
     def execute_request(request)
-      http = nil
       uri = request.uri
-      retries = 0
-      max_retries = 3
-
-      begin
-        unless http
-          http = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', read_timeout: 120)
-        end
+      Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', read_timeout: 600) do |http|
         http.request request
-      rescue Net::OpenTimeout, Net::ReadTimeout
-        if (retries += 1) <= max_retries
-          sleep(retries)
-          retry
-        else
-          raise
-        end
-      ensure
-        if http
-          http.finish
-        end
       end
     end
   end
