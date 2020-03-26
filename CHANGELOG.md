@@ -1,5 +1,9 @@
 ## Changelog
 
+### 0.35.1
+
+  * Lowered the minimum google-protobuf version to 3.8.0
+
 ### 0.35
 
   * Adds slightly more context to some error messages (i.e. provide more than `ArgumentError: ArgumentError` when we know what we expected).
