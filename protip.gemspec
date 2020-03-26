@@ -25,7 +25,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'activemodel', '>= 4.2.10', '< 6.0'
   spec.add_runtime_dependency 'activesupport', '>= 4.2.10', '< 6.0'
   spec.add_runtime_dependency 'money', '>= 6.5.1', '< 7.0'
-  spec.add_runtime_dependency 'google-protobuf', '3.8.0' # pinned to last version to pass test suite on travis
+  spec.add_runtime_dependency 'google-protobuf', '3.7.0' # pinned to last version to pass test suite on travis
 
   spec.add_development_dependency 'grpc-tools', '1.23.0' # pinned to last version to pass test suite on travis
   spec.add_development_dependency 'minitest', '~> 5.0'

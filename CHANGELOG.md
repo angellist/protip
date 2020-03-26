@@ -1,5 +1,9 @@
 ## Changelog
 
+### 0.35.2
+
+  * Lowered the minimum google-protobuf version to 3.7.0
+  
 ### 0.35.1
 
   * Lowered the minimum google-protobuf version to 3.8.0
