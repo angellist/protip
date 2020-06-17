@@ -4,15 +4,13 @@
 require 'google/protobuf'
 
 Google::Protobuf::DescriptorPool.generated_pool.build do
-  add_file("protip/messages/errors.proto", :syntax => :proto3) do
-    add_message "protip.messages.Errors" do
-      repeated :messages, :string, 1
-      repeated :field_errors, :message, 2, "protip.messages.FieldError"
-    end
-    add_message "protip.messages.FieldError" do
-      optional :field, :string, 1
-      optional :message, :string, 2
-    end
+  add_message "protip.messages.Errors" do
+    repeated :messages, :string, 1
+    repeated :field_errors, :message, 2, "protip.messages.FieldError"
+  end
+  add_message "protip.messages.FieldError" do
+    optional :field, :string, 1
+    optional :message, :string, 2
   end
 end
 

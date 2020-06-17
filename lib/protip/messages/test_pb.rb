@@ -6,15 +6,13 @@ require 'google/protobuf'
 require 'protip/messages/repeated_wrappers_pb'
 require 'protip/messages/wrappers_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
-  add_file("protip/messages/test.proto", :syntax => :proto3) do
-    add_message "protip.messages.EnumTest" do
-      optional :enum, :message, 1, "protip.messages.EnumValue"
-      optional :repeated_enums, :message, 2, "protip.messages.RepeatedEnum"
-    end
-    add_enum "protip.messages.EnumTest.Enum" do
-      value :ZERO, 0
-      value :ONE, 1
-    end
+  add_message "protip.messages.EnumTest" do
+    optional :enum, :message, 1, "protip.messages.EnumValue"
+    optional :repeated_enums, :message, 2, "protip.messages.RepeatedEnum"
+  end
+  add_enum "protip.messages.EnumTest.Enum" do
+    value :ZERO, 0
+    value :ONE, 1
   end
 end
 

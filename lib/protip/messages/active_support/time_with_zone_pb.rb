@@ -4,11 +4,9 @@
 require 'google/protobuf'
 
 Google::Protobuf::DescriptorPool.generated_pool.build do
-  add_file("protip/messages/active_support/time_with_zone.proto", :syntax => :proto3) do
-    add_message "protip.messages.ActiveSupport.TimeWithZone" do
-      optional :utc_timestamp, :int64, 1
-      optional :time_zone_name, :string, 2
-    end
+  add_message "protip.messages.ActiveSupport.TimeWithZone" do
+    optional :utc_timestamp, :int64, 1
+    optional :time_zone_name, :string, 2
   end
 end
 

@@ -4,12 +4,10 @@
 require 'google/protobuf'
 
 Google::Protobuf::DescriptorPool.generated_pool.build do
-  add_file("protip/messages/types.proto", :syntax => :proto3) do
-    add_message "protip.messages.Date" do
-      optional :year, :int64, 1
-      optional :month, :uint32, 2
-      optional :day, :uint32, 3
-    end
+  add_message "protip.messages.Date" do
+    optional :year, :int64, 1
+    optional :month, :uint32, 2
+    optional :day, :uint32, 3
   end
 end
 

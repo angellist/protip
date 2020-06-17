@@ -4,10 +4,8 @@
 require 'google/protobuf'
 
 Google::Protobuf::DescriptorPool.generated_pool.build do
-  add_file("protip/messages/array.proto", :syntax => :proto3) do
-    add_message "protip.messages.Array" do
-      repeated :messages, :bytes, 1
-    end
+  add_message "protip.messages.Array" do
+    repeated :messages, :bytes, 1
   end
 end
 
