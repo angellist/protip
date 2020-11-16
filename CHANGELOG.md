@@ -1,5 +1,9 @@
 ## Changelog
 
+### 0.35.4
+
+  * Raise the google-protobuf version to 3.7.1 to support Ruby 2.6 
+  
 ### 0.35.3
 
   * Lowered the google-protobuf version to 3.6.1
