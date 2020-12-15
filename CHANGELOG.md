@@ -1,13 +1,17 @@
 ## Changelog
 
+### 0.35.6
+
+  * Relax dependencies to allow Rails 6
+
+### 0.35.5
+
+  * Relax google-protobuf version constraint
+
 ### 0.35.4
 
-  * Relax google-protobuf version constraint 
-  
-### 0.35.4
+  * Raise the google-protobuf version to 3.7.1 to support Ruby 2.6
 
-  * Raise the google-protobuf version to 3.7.1 to support Ruby 2.6 
-  
 ### 0.35.3
 
   * Lowered the google-protobuf version to 3.6.1
@@ -15,7 +19,7 @@
 ### 0.35.2
 
   * Lowered the minimum google-protobuf version to 3.7.0
-  
+
 ### 0.35.1
 
   * Lowered the minimum google-protobuf version to 3.8.0
