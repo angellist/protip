@@ -1,5 +1,9 @@
 ## Changelog
 
+### 0.36
+
+  * Relax constraints to support Rails 6 
+  
 ### 0.35.4
 
   * Relax google-protobuf version constraint 
