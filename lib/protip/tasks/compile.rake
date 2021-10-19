@@ -3,7 +3,7 @@ require 'bundler/setup'
 
 namespace :protip do
   desc 'compile a single .proto file to Ruby'
-  task :compile, [:filename, :proto_path, :ruby_path] do |t, args|
+  task :compile, [:filename, :proto_path, :ruby_path, :rbi_path, :protoc_gen_rbi_path] do |t, args|
     proto_path = [args[:proto_path] || 'definitions'].flatten.compact.reject{|path| path == ''}
     proto_path << File.join(Gem.loaded_specs['protip'].full_gem_path, 'definitions')
 
@@ -11,7 +11,10 @@ namespace :protip do
 
     filename = args[:filename] || raise(ArgumentError.new 'filename argument is required')
 
-    command = "bundle exec grpc_tools_ruby_protoc #{proto_path.map{|p| "--proto_path=#{Shellwords.escape p}"}.join ' '} --ruby_out=#{Shellwords.escape ruby_path} #{Shellwords.escape filename}"
+    command = "bundle exec grpc_tools_ruby_protoc #{proto_path.map{|p| "--proto_path=#{Shellwords.escape p}"}.join ' '} --ruby_out=#{Shellwords.escape ruby_path}"
+    command << " --plugin=protoc-gen-rbi=#{args[:protoc_gen_rbi_path]}" if args[:protoc_gen_rbi_path]
+    command << " --rbi_out=#{args[:rbi_path]}" if args[:rbi_path]
+    command << " #{Shellwords.escape filename}"
     puts command
     system command
 

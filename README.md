@@ -178,6 +178,9 @@ Development
 To build message classes, you'll need to install the latest version of
 [`protoc`](https://github.com/google/protobuf).
 
+To use the rbi_out option for sorbet interface file generation you'll need:
+https://github.com/coinbase/protoc-gen-rbi
+
 Build message classes: `rake compile`
 
 Run tests: `rake test`
