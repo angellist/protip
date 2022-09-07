@@ -1,5 +1,9 @@
 ## Changelog
 
+### 0.36.2
+
+  * Relax version constraints for Rails 7 support
+
 ### 0.36.1
 
   * Add support for rbi generation for sorbet
