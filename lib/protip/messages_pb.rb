@@ -13,6 +13,9 @@ require 'protip/messages/repeated_wrappers_pb'
 require 'protip/messages/types_pb'
 require 'protip/messages/wrappers_pb'
 require 'protip/messages/active_support/time_with_zone_pb'
+
 Google::Protobuf::DescriptorPool.generated_pool.build do
+  add_file("protip/messages.proto", :syntax => :proto3) do
+  end
 end
 
