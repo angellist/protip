@@ -228,9 +228,14 @@ module Protip
     def set(field, value)
       return if field.label == :optional && value.nil? && get(field).nil?
 
-      return message[field.name].replace value.map{|v| to_protobuf_value field, v} if field.label == :repeated
+      if field.label == :repeated
+        new_values = value.map {|v| to_protobuf_value(field, v) }.compact
 
-      message[field.name] = to_protobuf_value(field, value)
+        message[field.name].replace(new_values)
+      else
+        message[field.name] = to_protobuf_value(field, value)
+      end
+
     end
 
     # Helper for setting values - converts the value for the given

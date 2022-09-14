@@ -1,3 +1,3 @@
 module Protip
-  VERSION = '0.37'
+  VERSION = '0.37.1'
 end
