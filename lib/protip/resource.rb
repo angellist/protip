@@ -235,7 +235,7 @@ module Protip
       end
 
       def belongs_to(association_name, options = {})
-        association = ::Protip::Resource::Associations::BelongsToAssociation.new(self, association_name, options)
+        association = ::Protip::Resource::Associations::BelongsToAssociation.new(self, association_name, **options)
         association.define_accessors!
         @belongs_to_associations.add association
         association
@@ -260,7 +260,7 @@ module Protip
         nested_association_creator.instance_eval(&block)
 
         association = ::Protip::Resource::Associations::BelongsToPolymorphicAssociation.new self,
-          association_name, nested_association_creator.associations, options
+          association_name, nested_association_creator.associations, **options
         association.define_accessors!
         @belongs_to_polymorphic_associations.add association
         association
