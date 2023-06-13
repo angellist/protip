@@ -22,7 +22,7 @@ namespace :protip do
     package_match = File.read(filename).match(/package "?([a-zA-Z0-9\.]+)"?;/)
     package = (package_match ? package_match[1] : nil)
     ruby_file = filename.gsub(/^#{proto_path.first}\/?/, "#{ruby_path}/").gsub(/\.proto$/, '_pb.rb') # Relies on a relative filename and proto path, which protoc requires anyway at this point
-    raise "cannot find generated Ruby file (#{ruby_file})" unless File.exists?(ruby_file)
+    raise "cannot find generated Ruby file (#{ruby_file})" unless File.exist?(ruby_file)
 
     # Push/pop message names as we move through the protobuf file
     message_name_stack = []
