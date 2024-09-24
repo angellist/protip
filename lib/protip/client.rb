@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'active_support/concern'
 require 'active_support/deprecation'
 require 'protip/error'
@@ -19,34 +21,27 @@ module Protip
     #   expected as a response
     # @return [::Protobuf::Message] the decoded response from the server
     def request(path:, method:, message:, response_type:)
+      body = (message ? message.class.encode(message) : nil).presence
 
-      raise RuntimeError.new('base_uri is not set') unless base_uri
+      response = client.send(remap_method(method), path, body) do |req|
+        prepare_request(req.headers)
+      end
 
-      uri = URI.join base_uri, path
+      request = response.env.request
 
-      request                 = method.new uri
-      request.body            = (message ? message.class.encode(message) : nil)
-      request['Accept']       = 'application/x-protobuf'
-      request.content_type    = 'application/x-protobuf'
-
-      prepare_request(request)
-
-      # TODO: Shared connection object for persisent connections.
-      response = execute_request(request)
-
-      if response.is_a?(Net::HTTPUnprocessableEntity)
+      if response.status == 422
         raise ::Protip::UnprocessableEntityError.new(request, response)
-      elsif response.is_a?(Net::HTTPNotFound)
+      elsif response.status == 404
         raise ::Protip::NotFoundError.new(request, response)
-      elsif !response.is_a?(Net::HTTPSuccess)
+      elsif !response.success?
         raise ::Protip::Error.new(request, response)
       end
 
       if response_type
         begin
-          response_type.decode response.body
+          response_type.decode(response.body)
         rescue StandardError => error
-          raise ::Protip::ParseError.new error, request, response
+          raise ::Protip::ParseError.new(error, request, response)
         end
       else
         nil
@@ -55,25 +50,38 @@ module Protip
 
     private
 
+    def remap_method(method)
+      return :get if method == :get || method == Net::HTTP::Get
+      return :head if method == :head || method == Net::HTTP::Head
+      return :post if method == :post || method == Net::HTTP::Post
+      return :put if method == :put || method == Net::HTTP::Put
+      return :patch if method == :patch || method == Net::HTTP::Patch
+      return :delete if method == :delete || method == Net::HTTP::Delete
+      return :options if method == :options || method == Net::HTTP::Options
+      raise RuntimeError.new("unknown method #{method}")
+    end
+
+    def client
+      raise RuntimeError.new('base_uri is not set') unless base_uri
+
+      Faraday.new({
+        url: base_uri,
+        headers: {
+          'Accept' => 'application/x-protobuf',
+          'Content-Type' => 'application/x-protobuf',
+        },
+        request: {
+          timeout: 600,
+        },
+      })
+    end
+
     # Invoked just before a request is sent to the API server. No-op by default, but
     # implementations can override to add e.g. secret keys and user agent headers.
     #
     # @param request [Net::HTTPGenericRequest] the raw request object which is about to be sent
     def prepare_request(request)
       # No-op by default.
-    end
-
-    # Helper for obtaining the API server's response, overridable if any special handling
-    # is needed.
-    # TODO: (possibly) merge this with +prepare_request+
-    #
-    # @param request [Net::HTTPGenericRequest] the raw request object to send
-    # @return [Net::HTTPResponse] the response for the given request
-    def execute_request(request)
-      uri = request.uri
-      Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', read_timeout: 600) do |http|
-        http.request request
-      end
     end
   end
 end

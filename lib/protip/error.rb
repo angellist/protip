@@ -10,14 +10,14 @@ module Protip
       @response = response
 
       msg = <<-MSG
-Received HTTP #{response.code} from #{request.uri}. Response:
+Received HTTP #{response.code} from #{response.env.url}. Response:
 #{response.body}
       MSG
       super(msg)
     end
 
     def inspect
-      "[#{self.class}] #{request.uri} -> code #{response.code}"
+      "[#{self.class}] #{response.env.url} -> code #{response.code}"
     end
   end
 

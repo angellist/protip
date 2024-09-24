@@ -9,7 +9,7 @@ module Protip
       def update!
         raise RuntimeError.new("Can't update a non-persisted object") if !persisted?
         self.message = self.class.client.request path: "#{self.class.base_path}/#{id}",
-          method: Net::HTTP::Put,
+          method: :put,
           message: message,
           response_type: self.class.message
       end
