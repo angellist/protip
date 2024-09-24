@@ -9,7 +9,7 @@ module Protip
       def create!
         raise RuntimeError.new("Can't re-create a persisted object") if persisted?
         self.message = self.class.client.request path: self.class.base_path,
-          method: Net::HTTP::Post,
+          method: :post,
           message: message,
           response_type: self.class.message
       end

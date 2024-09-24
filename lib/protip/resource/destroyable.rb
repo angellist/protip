@@ -6,7 +6,7 @@ module Protip
       def destroy
         raise RuntimeError.new("Can't destroy a non-persisted object") if !persisted?
         self.message = self.class.client.request path: "#{self.class.base_path}/#{id}",
-          method: Net::HTTP::Delete,
+          method: :delete,
           message: nil,
           response_type: self.class.message
       end

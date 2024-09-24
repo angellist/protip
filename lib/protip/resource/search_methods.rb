@@ -13,7 +13,7 @@ module Protip
       #   initialized with).
       def self.index(resource_class, query)
         response = resource_class.client.request path: resource_class.base_path,
-          method: Net::HTTP::Get,
+          method: :get,
           message: query,
           response_type: Protip::Messages::Array
         response.messages.map do |message|
@@ -30,7 +30,7 @@ module Protip
       #   response.
       def self.show(resource_class, id, query)
         response = resource_class.client.request path: "#{resource_class.base_path}/#{id}",
-          method: Net::HTTP::Get,
+          method: :get,
           message: query,
           response_type: resource_class.message
         resource_class.new response
