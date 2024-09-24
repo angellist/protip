@@ -21,9 +21,8 @@ module Protip
     #   expected as a response
     # @return [::Protobuf::Message] the decoded response from the server
     def request(path:, method:, message:, response_type:)
-      body = (message ? message.class.encode(message) : nil).presence
-
-      response = client.send(remap_method(method), path, body) do |req|
+      response = client.send(remap_method(method), path) do |req|
+        req.body = message.class.encode(message).presence if message
         prepare_request(req.headers)
       end
 
@@ -39,7 +38,7 @@ module Protip
 
       if response_type
         begin
-          response_type.decode(response.body)
+          response_type.decode(response.body || '')
         rescue StandardError => error
           raise ::Protip::ParseError.new(error, request, response)
         end
