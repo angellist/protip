@@ -22,7 +22,8 @@ module Protip
     # @return [::Protobuf::Message] the decoded response from the server
     def request(path:, method:, message:, response_type:)
       response = client.send(remap_method(method), path) do |req|
-        req.body = message.class.encode(message).presence if message
+        req.body = message ? message.class.encode(message) : ''
+
         prepare_request(req.headers)
       end
 
