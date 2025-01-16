@@ -12,6 +12,9 @@ describe 'Protip::Resource (functional)' do
   let :pool do
     pool = Google::Protobuf::DescriptorPool.new
     pool.build do
+      add_message 'google' do; end
+      add_message 'google.protobuf' do; end
+
       add_message 'google.protobuf.Int64Value' do # TODO: can we get this directly into the pool from the global pool?
         optional :value, :int64, 1
       end

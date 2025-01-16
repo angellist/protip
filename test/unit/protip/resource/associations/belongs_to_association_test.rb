@@ -6,6 +6,9 @@ describe Protip::Resource::Associations::BelongsToAssociation do
   let :pool do
     pool = Google::Protobuf::DescriptorPool.new
     pool.build do
+      add_message 'google' do; end
+      add_message 'google.protobuf' do; end
+
       # Allow nil ID fields
       add_message 'google.protobuf.StringValue' do
         optional :value, :string, 1

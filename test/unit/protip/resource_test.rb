@@ -10,6 +10,9 @@ module Protip::ResourceTest # Namespace for internal constants
       # examples of field types you can add here
       pool = Google::Protobuf::DescriptorPool.new
       pool.build do
+        add_message 'google' do; end
+        add_message 'google.protobuf' do; end
+
         add_enum 'number' do
           value :ZERO, 0
           value :ONE, 1
@@ -326,7 +329,7 @@ module Protip::ResourceTest # Namespace for internal constants
         it 'requests an array from the index URL' do
           client.expects(:request)
             .once
-            .with(method: Net::HTTP::Get, path: 'base_path', message: nil, response_type: Protip::Messages::Array)
+            .with(method: :get, path: 'base_path', message: nil, response_type: Protip::Messages::Array)
             .returns(response)
           resource_class.all
         end
@@ -371,7 +374,7 @@ module Protip::ResourceTest # Namespace for internal constants
         it 'requests an array from the index URL with the query' do
           client.expects(:request)
             .once
-            .with(method: Net::HTTP::Get, path: 'base_path',
+            .with(method: :get, path: 'base_path',
               message: resource_query_class.new(param: 'val'), response_type: Protip::Messages::Array
             ).returns(response)
           resource_class.all(param: 'val')
@@ -379,14 +382,14 @@ module Protip::ResourceTest # Namespace for internal constants
 
         it 'allows a request with an empty query' do
           client.expects(:request)
-            .with(method: Net::HTTP::Get, path: 'base_path',
+            .with(method: :get, path: 'base_path',
               message: resource_query_class.new, response_type: Protip::Messages::Array)
           .returns(response)
           resource_class.all
         end
 
         describe '(convertibility)' do
-          let(:http_method) { Net::HTTP::Get }
+          let(:http_method) { :get }
           let(:path) { 'base_path' }
           let(:query_class) { resource_query_class }
           let(:nested_message_field_name) { :nested_message }
@@ -422,7 +425,7 @@ module Protip::ResourceTest # Namespace for internal constants
         it 'requests its message type from the show URL' do
           client.expects(:request)
             .once
-            .with(method: Net::HTTP::Get, path: 'base_path/3', message: nil, response_type: resource_message_class)
+            .with(method: :get, path: 'base_path/3', message: nil, response_type: resource_message_class)
             .returns(response)
           resource_class.find 3
         end
@@ -454,7 +457,7 @@ module Protip::ResourceTest # Namespace for internal constants
         it 'requests its message type from the show URL with the query' do
           client.expects(:request)
             .once
-            .with(method: Net::HTTP::Get, path: 'base_path/5',
+            .with(method: :get, path: 'base_path/5',
               message: resource_query_class.new(param: 'val'), response_type: resource_message_class)
             .returns(response)
           resource_class.find 5, param: 'val'
@@ -463,14 +466,14 @@ module Protip::ResourceTest # Namespace for internal constants
         it 'allows a request with an empty query' do
           client.expects(:request)
             .once
-            .with(method: Net::HTTP::Get, path: 'base_path/6',
+            .with(method: :get, path: 'base_path/6',
               message: resource_query_class.new, response_type: resource_message_class)
             .returns(response)
           resource_class.find 6
         end
 
         describe '(convertibility)' do
-          let(:http_method) { Net::HTTP::Get }
+          let(:http_method) { :get }
           let(:path) { 'base_path/5' }
           let(:query_class) { resource_query_class }
           let(:nested_message_field_name) { :nested_message }
@@ -732,7 +735,7 @@ module Protip::ResourceTest # Namespace for internal constants
         it 'sends the resource to the server' do
           client.expects(:request)
             .once
-            .with(method: Net::HTTP::Post, path: 'base_path',
+            .with(method: :post, path: 'base_path',
               message: resource_message_class.new(string: 'time', string2: 'flees'), response_type: resource_message_class)
             .returns(response)
 
@@ -775,7 +778,7 @@ module Protip::ResourceTest # Namespace for internal constants
         it 'sends the resource to the server' do
           client.expects(:request)
             .once
-            .with(method: Net::HTTP::Put, path: 'base_path/4',
+            .with(method: :put, path: 'base_path/4',
               message: resource_message_class.new(id: 4, string: 'pitbull'), response_type: resource_message_class)
             .returns(response)
 
@@ -813,8 +816,11 @@ module Protip::ResourceTest # Namespace for internal constants
           request = mock
           request.stubs(:uri).returns('http://some.uri')
 
+          env = mock
+          env.stubs(url: nil)
+
           response = mock
-          response.stubs(code: 500, body: @errors.to_proto)
+          response.stubs(status: 500, body: @errors.to_proto, env: env)
 
           exception = Protip::UnprocessableEntityError.new request, response
           exception.stubs(:errors).returns @errors
@@ -873,7 +879,7 @@ module Protip::ResourceTest # Namespace for internal constants
         it 'sends a delete request to the server' do
           client.expects(:request)
             .once
-            .with(method: Net::HTTP::Delete, path: 'base_path/79', message: nil, response_type: resource_message_class)
+            .with(method: :delete, path: 'base_path/79', message: nil, response_type: resource_message_class)
             .returns(response)
           resource_class.new(id: 79).destroy
         end
@@ -911,14 +917,14 @@ module Protip::ResourceTest # Namespace for internal constants
       describe 'without a request or response type' do
         before do
           resource_class.class_eval do
-            send defining_method, action: :action, method: Net::HTTP::Put
+            send defining_method, action: :action, method: :put
           end
         end
 
         it 'sends a request with no body and no response type to the expected endpoint' do
           client.expects(:request)
             .once
-            .with(method: Net::HTTP::Put, path: path, message: nil, response_type: nil)
+            .with(method: :put, path: path, message: nil, response_type: nil)
             .returns(nil)
           target.action
         end
@@ -937,7 +943,7 @@ module Protip::ResourceTest # Namespace for internal constants
       describe 'with a request type' do
         before do
           resource_class.class_exec(action_query_class) do |request|
-            send defining_method, action: :action, method: Net::HTTP::Post, request: request
+            send defining_method, action: :action, method: :post, request: request
           end
         end
 
@@ -946,7 +952,7 @@ module Protip::ResourceTest # Namespace for internal constants
         it 'sends a request with a body to the expected endpoint' do
           client.expects(:request)
             .once
-            .with(method: Net::HTTP::Post, path: path,
+            .with(method: :post, path: path,
               message: action_query_class.new(param: 'tom cruise'), response_type: nil)
             .returns(nil)
           target.action param: 'tom cruise'
@@ -955,14 +961,14 @@ module Protip::ResourceTest # Namespace for internal constants
         it 'allows a request with no parameters' do
           client.expects(:request)
             .once
-            .with(method: Net::HTTP::Post, path: path,
+            .with(method: :post, path: path,
               message: action_query_class.new, response_type: nil)
             .returns(nil)
           target.action
         end
 
         describe '(convertibility)' do
-          let(:http_method) { Net::HTTP::Post }
+          let(:http_method) { :post }
           let(:path) { path }
           let(:query_class) { action_query_class }
           let(:nested_message_field_name) { :nested_message }
@@ -974,14 +980,14 @@ module Protip::ResourceTest # Namespace for internal constants
       describe 'with a response type' do
         before do
           resource_class.class_exec(action_response_class) do |response|
-            send defining_method, action: :action, method: Net::HTTP::Get, response: response
+            send defining_method, action: :action, method: :get, response: response
           end
         end
 
         it 'sends a request with a specified response type to the expected endpoint' do
           client.expects(:request)
             .once
-            .with(method: Net::HTTP::Get, path: path,
+            .with(method: :get, path: path,
               message: nil, response_type: action_response_class)
             .returns(response)
           target.action

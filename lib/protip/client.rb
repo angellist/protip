@@ -4,6 +4,7 @@ require 'active_support/concern'
 require 'active_support/deprecation'
 require 'protip/error'
 require 'net/http'
+require 'faraday'
 
 module Protip
   module Client

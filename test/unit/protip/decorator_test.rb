@@ -17,6 +17,11 @@ describe Protip::Decorator do
   let(:pool) do
     pool = Google::Protobuf::DescriptorPool.new
     pool.build do
+      add_message 'google' do; end
+      add_message 'google.protobuf' do; end
+      add_message 'protip' do; end
+      add_message 'protip.messages' do; end
+
       add_enum 'number' do
         value :ZERO, 0
         value :ONE, 1
@@ -88,6 +93,8 @@ describe Protip::Decorator do
     resource_class.client = client
     resource_class
   end
+
+  let(:inner_message_class) { pool.lookup('inner_message').msgclass }
 
   # An actual protobuf message, which is used when building the decorator below
   let(:decorated_message) do

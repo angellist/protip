@@ -49,7 +49,7 @@ describe ::Protip::Transformers::PrimitivesTransformer do
             exception = assert_raises RuntimeError do
               result << value
             end
-            assert_equal 'can\'t modify frozen Array', exception.message
+            assert_match 'can\'t modify frozen Array', exception.message
           end
         end
 
