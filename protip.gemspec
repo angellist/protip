@@ -20,18 +20,18 @@ Gem::Specification.new do |spec|
                        Dir['definitions/**/*.proto'] +
                        Dir['build/**/*.rb']
 
-  spec.required_ruby_version = '>= 2.1.0'
+  spec.required_ruby_version = '>= 3.0.0'
 
   spec.add_runtime_dependency 'activemodel', '>= 4.2.10', '< 8.0'
   spec.add_runtime_dependency 'activesupport', '>= 4.2.10', '< 8.0'
   spec.add_runtime_dependency 'money', '>= 6.5.1', '< 7.0'
-  spec.add_runtime_dependency 'google-protobuf', '>= 3.7.1'
+  spec.add_runtime_dependency 'google-protobuf', '~> 3'
   spec.add_runtime_dependency 'faraday', '< 3'
 
-  spec.add_development_dependency 'grpc-tools', '1.48.0'
-  spec.add_development_dependency 'minitest', '~> 5.0'
+  spec.add_development_dependency 'grpc-tools'
+  spec.add_development_dependency 'minitest', '~> 5'
   spec.add_development_dependency 'minitest-stub-const', '~> 0.6'
-  spec.add_development_dependency 'mocha', '~> 1.11'
+  spec.add_development_dependency 'mocha', '~> 2'
   spec.add_development_dependency 'rake', '>= 12.3.3'
   spec.add_development_dependency 'simplecov', '~> 0.18'
   spec.add_development_dependency 'pry-byebug'
