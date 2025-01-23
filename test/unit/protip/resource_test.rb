@@ -814,7 +814,7 @@ module Protip::ResourceTest # Namespace for internal constants
           request.stubs(:uri).returns('http://some.uri')
 
           response = mock
-          response.stubs(code: 500, body: @errors.to_proto)
+          response.stubs(status: 500, body: @errors.to_proto)
 
           exception = Protip::UnprocessableEntityError.new request, response
           exception.stubs(:errors).returns @errors
