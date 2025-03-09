@@ -21,7 +21,7 @@ module Protip
               field.subtype.msgclass.new(
                 numerator: rational.numerator,
                 denominator: rational.denominator,
-                precision: object.precs[0], # This is the current precision of the decimal
+                precision: object.try(:precision) || object.precs[0], # This is the current precision of the decimal
               )
             end
           end).new
