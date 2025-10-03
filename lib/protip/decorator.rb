@@ -9,6 +9,23 @@ module Protip
   # - mass assignment of attributes
   # - standardized creation of nested messages that can't be converted to/from Ruby objects
   class Decorator
+    class << self
+      def map_field?(field)
+        field.subtype&.options.try(:map_entry)
+      end
+
+      def map_subfields(field)
+        map_entry_descriptor = field.subtype
+        key_field = map_entry_descriptor.find do |f|
+          f.name == 'key'
+        end
+        value_field = map_entry_descriptor.find do |f|
+          f.name == 'value'
+        end
+
+        [key_field, value_field]
+      end
+    end
 
     attr_reader :message, :transformer, :nested_resources
 
@@ -134,7 +151,8 @@ module Protip
         # +DecoratingTransformer+ is used for the transformation). Can
         # be removed if we decide the update behavior is unnecessary,
         # since +DecoratingTransformer+ supports assignment by hash.
-        if field.type == :message && value.is_a?(Hash)
+        # We need to send maps through #set to avoid interpreting their keys as message fields.
+        if field.type == :message && value.is_a?(Hash) && !Protip::Decorator.map_field?(field)
           (get(field) || build(field.name)).assign_attributes value
         else
           set(field, value)
@@ -196,7 +214,27 @@ module Protip
     # @param field [::Google::Protobuf::FieldDescriptor]
     def get(field)
       if field.label == :repeated
-        message[field.name].map{|value| to_ruby_value field, value}
+        if Protip::Decorator.map_field?(field)
+          key_field, value_field = Protip::Decorator.map_subfields(field)
+
+          # The first `.to_h` converts the protobuf map to a hash. It does not take a block arg.
+          # The second restructures the hash after parsing all the keys and values.
+          message[field.name].to_h.to_h do |k, v|
+            transformed_key = to_ruby_value(key_field, k)
+            transformed_value = if value_field.type == :message
+              # Map values can be messages, which we need to handle carefully here, since
+              # we're not just setting a field on the parent message. Since this is just a value in a hash,
+              # we need to handle decorating it ourselves.
+              Protip.decorate(value_field.subtype.msgclass.new v)
+            else
+              to_ruby_value(value_field, v)
+            end
+
+            [transformed_key, transformed_value]
+          end
+        else
+          message[field.name].map{|value| to_ruby_value field, value}
+        end
       else
         to_ruby_value field, message[field.name]
       end
@@ -229,9 +267,23 @@ module Protip
       return if field.label == :optional && value.nil? && get(field).nil?
 
       if field.label == :repeated
-        new_values = value.map {|v| to_protobuf_value(field, v) }.compact
+        if Protip::Decorator.map_field?(field)
+          # If we're instantiating a protobuf map, we want to convert each key, value pair, and set that on the proto.
+          # We have to do this separately, because our default logic will interpret the keys as proto fields, but
+          # they're not.
+          value.each do |k, v|
+            key_field, value_field = Protip::Decorator.map_subfields(field)
+            transformed_key = to_protobuf_value(key_field, k)
+            transformed_value = to_protobuf_value(value_field, v)
 
-        message[field.name].replace(new_values)
+            message[field.name][transformed_key] = transformed_value
+          end
+        else
+          new_values = value.map {|v| to_protobuf_value(field, v) }.compact
+
+          message[field.name].replace(new_values)
+        end
+
       else
         message[field.name] = to_protobuf_value(field, value)
       end
