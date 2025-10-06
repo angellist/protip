@@ -178,11 +178,20 @@ module Protip
       message.class.descriptor.each do |field|
         value = get(field)
         if field.label == :repeated
-          value.map!{|v| transform[v]}
+          if Protip::Decorator.map_field?(field)
+            hash[field.name.to_sym] = {}
+
+            value.each do |k, v|
+              hash[field.name.to_sym][transform[k]] = transform[v]
+            end
+          else
+            value.map!{|v| transform[v]}
+            hash[field.name.to_sym] = value
+          end
         else
           value = transform[value]
+          hash[field.name.to_sym] = value
         end
-        hash[field.name.to_sym] = value
       end
       hash
     end
