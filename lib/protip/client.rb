@@ -2,6 +2,8 @@
 
 require 'active_support/concern'
 require 'active_support/deprecation'
+require 'faraday'
+require 'faraday/retry'
 require 'protip/error'
 require 'net/http'
 
@@ -64,6 +66,19 @@ module Protip
     def client
       raise RuntimeError.new('base_uri is not set') unless base_uri
 
+      # Faraday retries idempotent request methods by default, but does not include connection failures.
+      # Do not include EOF errors or the timeout exceptions from Faraday::Retry::Middleware::DEFAULT_EXCEPTIONS
+      # as the timeout configuration below is long.
+      retry_options = {
+        max: 2,
+        interval: 0.05,
+        interval_randomness: 0.5,
+        backoff_factor: 2,
+        exceptions: [
+          Faraday::ConnectionFailed,
+        ],
+      }
+
       Faraday.new({
         url: base_uri,
         headers: {
@@ -73,7 +88,9 @@ module Protip
         request: {
           timeout: 600,
         },
-      })
+      }) do |connection|
+        connection.request :retry, retry_options
+      end
     end
 
     # Invoked just before a request is sent to the API server. No-op by default, but
