@@ -36,7 +36,7 @@ module Protip
         object
       end
 
-      # Helper transfomer for scalar well-known types.
+      # Helper transformer for scalar well-known types.
       class ScalarTransformer
         # @param [Proc] transform Proc to convert a Ruby object to the
         #   primitive type that we're transforming to.

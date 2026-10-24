@@ -44,7 +44,7 @@ module Protip
             symbol_or_int
           else
             # Convert +.to_sym+ explicitly to allow strings (or other
-            # symobolizable objects) to be passed in to setters.
+            # symbolizable objects) to be passed in to setters.
             enum_for_field(field).lookup_name(symbol_or_int.to_sym) ||
               raise(RangeError.new "unknown symbol value for field '#{field.name}'")
           end

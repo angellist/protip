@@ -16,7 +16,7 @@ module Protip
     # Makes a request and parses the response as a message of the given type.
     # For internal use only; use the appropriate resource to make your requests.
     #
-    # @param path [String] the URI path (exluding the base URI)
+    # @param path [String] the URI path (excluding the base URI)
     # @param method [Class] the HTTP method (e.g. `::Net::HTTP::Get`, `::Net::HTTP::Post`)
     # @param message [Protobuf::Message|nil] the message to send as the request body
     # @param response_type [Class] the `::Protobuf::Message` subclass that should be
