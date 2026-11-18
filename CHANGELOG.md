@@ -1,5 +1,9 @@
 ## Changelog
 
+### 0.39.3
+
+  * Percent-encode member IDs as a single path segment for find, update, destroy, and custom member actions. Reject empty IDs and dot segments.
+
 ### 0.36.2
 
   * Relax version constraints for Rails 7 support
