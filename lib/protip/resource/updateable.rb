@@ -9,6 +9,7 @@ module Protip
       # PUT the resource on the server and update our internal message. Private, since
       # we should generally do this through the `save` method.
       def update!
+        raise RuntimeError.new("Can't update a non-persisted object") if !persisted?
         self.message = self.class.client.request path: MemberPath.build(self.class, id),
           method: :put,
           message: message,

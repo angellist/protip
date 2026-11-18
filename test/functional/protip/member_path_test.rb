@@ -62,9 +62,11 @@ describe 'Protip member paths' do
         resource.define_singleton_method(:id) { id }
         request = stub_request(:any, /https:\/\/external.service/)
 
-        assert_raises(ArgumentError) do
+        error_class = id.nil? && action == :destroy ? RuntimeError : ArgumentError
+        error = assert_raises(error_class) do
           action == :find ? resource_class.find(id) : resource.public_send(action)
         end
+        assert_equal "Can't destroy a non-persisted object", error.message if id.nil? && action == :destroy
         assert_not_requested request
       end
     end

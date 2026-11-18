@@ -6,6 +6,7 @@ module Protip
     # and will be included automatically when appropriate.
     module Destroyable
       def destroy
+        raise RuntimeError.new("Can't destroy a non-persisted object") if !persisted?
         self.message = self.class.client.request path: MemberPath.build(self.class, id),
           method: :delete,
           message: nil,
