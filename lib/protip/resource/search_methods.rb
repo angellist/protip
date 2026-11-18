@@ -1,3 +1,5 @@
+require 'protip/resource/member_path'
+
 module Protip
   module Resource
     # Internal handlers for index/show actions. Never use these directly; instead, use `.all` and
@@ -29,7 +31,7 @@ module Protip
       # @return [Protip::Resource] An instance of our resource class, created from the server
       #   response.
       def self.show(resource_class, id, query)
-        response = resource_class.client.request path: "#{resource_class.base_path}/#{id}",
+        response = resource_class.client.request path: MemberPath.build(resource_class, id),
           method: :get,
           message: query,
           response_type: resource_class.message

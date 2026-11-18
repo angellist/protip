@@ -1,4 +1,5 @@
 require 'protip/decorator'
+require 'protip/resource/member_path'
 
 module Protip
   module Resource
@@ -7,7 +8,7 @@ module Protip
     # you're working with.
     module ExtraMethods
       def self.member(resource, action, method, message, response_type)
-        response = resource.class.client.request path: "#{resource.class.base_path}/#{resource.id}/#{action}",
+        response = resource.class.client.request path: "#{MemberPath.build(resource.class, resource.id)}/#{action}",
           method: method,
           message: message,
           response_type: response_type
